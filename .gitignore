@@ -15,3 +15,6 @@ __pycache__
 .venv
 .vscode
 *.backup
+
+# Rooted-device diagnostic captures may contain device identifiers and mount state.
+font_module_dev/device_capture/

@@ -1,0 +1,6 @@
+id=maple-font
+name=Maple Mono NF AllCJK (OxygenOS 16 experimental)
+version=v0.1.0-dev
+versionCode=1
+author=Maple Font contributors
+description=Experimental systemless overlay generated from CPH2747_16.0.9.400 (EX01) samples. Magisk ready; KernelSU requires a system-mount metamodule such as meta-overlayfs.
