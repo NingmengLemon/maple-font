@@ -24,9 +24,10 @@ fea:
 build-dry:
     uv run build.py --dry
 
-# Build the four core styles as hinted Nerd Font CJK TTFs for one locale.
+# Build all styles as hinted Nerd Font CJK TTFs for one locale.
+# available locales: cn, jp, kr, tc
 build-cjk locale="cn":
-    uv run build.py --cjk {{ locale }} --format ttf --least-styles --cache
+    uv run build.py --cjk {{ locale }} --format ttf --cache
 
 # Rebuild a locale's standalone CJK variable and static base assets.
 cjk-base locale="cn":
