@@ -129,6 +129,21 @@ WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP�
 4. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
 5. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
 
+### OpenType Collection（TTC）候选方案
+
+由于模块覆盖四层字体配置，CJK fallback 可改为按 style 的多语言 TTC，而不必继续让每个 CJK language family 都引用同一份 AllCJK TTF。建议先创建一个仅用于 Regular 的四-face staging TTC，例如 `MapleMono-NF-CJK-Regular.ttc`，按固定 index 存放 CN、JP、TC、KR face；随后在四个 CJK language family 中引用同一 TTC，并使用 `index` 选择 locale face。原始 OxygenOS 配置已经使用带 index 的 `NotoSansCJK-Regular.ttc`，因此该 XML 表达方式与目标设备的既有模型一致。
+
+- `zh-Hans` → TTC index `0`（CN）
+- `ja` → TTC index `1`（JP）
+- `zh-Hant,zh-Bopo` → TTC index `2`（TC）
+- `ko` → TTC index `3`（KR）
+
+仅四个 CJK language fallback family 应切换到 TTC；命名 UI family（`sans-serif`、`monospace` 等）保持当前单独的静态 Maple face。TTC 不应与原系统 Noto/SysSans face 混用。
+
+潜在收益是语言隔离更清晰，并可能共享相同 OpenType 表而减少模块体积；实际节省取决于各 locale face 的表能否共享，不能假设按四倍线性缩减。实现需要使 `generate_configs.py` 的 font 节点生成支持 `index`，使 `build_module.py` 同步、校验 `.ttc` 资产，并提供确定性的 TTC 构建与 FontTools 校验。
+
+在推广到 16 个 styles 前，必须先用 Regular staging 包实机验证：模块挂载、启动、语言切换、CJK fallback、Google App/普通 App 兼容性，以及 KernelSU Next 的“默认卸载模块”关闭要求。成功后再扩展到其余 style 并重新执行完整设备验证流程。
+
 ---
 
 ## 禁止事项（已通过实机验证应该避免）
