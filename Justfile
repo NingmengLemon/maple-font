@@ -30,8 +30,20 @@ build-cjk locale="cn":
     uv run build.py --cjk {{ locale }} --format ttf --cache
 
 # Rebuild a locale's standalone CJK variable and static base assets.
+# Each locale writes only under source/cjk/<locale>/, so independent locales are safe to run together.
 cjk-base locale="cn":
     uv run task.py cjk --config source/cjk/{{ locale }}/config-{{ locale }}.json
+
+# Rebuild CN, JP, TC, and KR CJK base caches concurrently.
+# Each child still uses config.json's pool_size workers; keep JUST_JOBS * pool_size
+# at or below the physical-core count to avoid memory pressure and disk contention.
+[parallel]
+cjk-bases: (cjk-base "cn") (cjk-base "jp") (cjk-base "tc") (cjk-base "kr")
+
+# Build all CJK output faces from the base caches in one process.
+# Do not run separate build-cjk recipes concurrently: they share fonts/ and build-cache.json.
+build-all-cjk:
+    uv run build.py --cjk cn,jp,tc,kr --format ttf --cache
 
 # Audit Extension G/H/I/J coverage in sources and built regular faces.
 cjk-audit:
@@ -49,9 +61,11 @@ merge-all-cjk:
 module:
     uv run python font_module_dev/build_module.py
 
-# Execute the staged local release workflow: CJK base, merge, audit, and module package.
+# Execute the staged local release workflow: parallel CJK bases, shared output build,
+# merge, audit, and module package. On the current 16-core host, start with: just --jobs 4 module-release
 module-release:
-    just cjk-base cn
+    just cjk-bases
+    just build-all-cjk
     just merge-all-cjk
     just cjk-audit
     just module
