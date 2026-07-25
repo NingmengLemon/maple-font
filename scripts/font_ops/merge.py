@@ -1,10 +1,24 @@
 from __future__ import annotations
 
 
+from typing import cast
+
 from fontTools.merge import Merger
-from scripts.font_ops.fonttools import TTFont, adapt_ttfont
+from fontTools.subset import Options
+
+from scripts.font_ops.fonttools import SubsetOptions, TTFont, adapt_ttfont
+from scripts.font_ops.subset import subset_to_codepoints
 
 from scripts.utils.logging import logger
+
+
+def _unicode_subset_options() -> SubsetOptions:
+    """Drop layout tables while retaining glyph dependencies for locale cmap entries."""
+    options = Options()
+    options.layout_features = []
+    options.recalc_bounds = True
+    options.recalc_timestamp = False
+    return cast(SubsetOptions, options)
 
 
 def merge_ttfonts(
@@ -18,6 +32,29 @@ def merge_ttfonts(
     try:
         base_font = TTFont(base_font_path)
         extra_font = TTFont(extra_font_path)
+        base_codepoints = set(base_font["cmap"].getBestCmap() or {})
+        extra_cmap = extra_font["cmap"].getBestCmap() or {}
+        codepoints_to_add = set(extra_cmap).difference(base_codepoints)
+        if not codepoints_to_add:
+            logger.debug("Skip font merge because no new Unicode values were found")
+            return base_font
+
+        # Canonicalize the high-priority face before appending later locales.
+        # CJK static fonts may contain tens of thousands of unmapped glyphs;
+        # retaining them makes an otherwise valid merged TTF exceed the 16-bit
+        # maxp glyph-count limit. Unicode subsetting preserves all mapped glyphs
+        # and their composite dependencies while removing unreachable outlines.
+        subset_to_codepoints(
+            base_font,
+            base_codepoints,
+            options=_unicode_subset_options(),
+        )
+        subset_to_codepoints(
+            extra_font,
+            codepoints_to_add,
+            options=_unicode_subset_options(),
+        )
+
         base_glyf = base_font["glyf"]
         extra_glyf = extra_font["glyf"]
         base_glyph_order = base_font.getGlyphOrder()

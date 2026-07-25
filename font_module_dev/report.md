@@ -85,11 +85,13 @@ They reference only the exact merged output names produced by [`merge_cjk_locale
 
 [`merge_cjk_locales.py`](../merge_cjk_locales.py) receives locales in priority order. The default is `CN,JP,TC,KR`, so the first available glyph mapping wins on conflicts. The merge script defaults to fail-closed: if any selected input style or locale is missing, it exits rather than emitting a misleading `AllCJK` output. `--allow-missing` is an explicit escape hatch for development only.
 
-The current locale configuration deliberately ends at `U+FFEF`; for example, [`config-cn.json`](../source/cjk/cn/config-cn.json) includes the BMP CJK ranges but no supplementary-plane CJK ranges. Consequently the generated Maple fonts contain **zero** mappings for CJK Extensions G (`U+30000`), H (`U+31350`), I (`U+2EBF0`), and J (`U+323B0`). This is a source-coverage limitation, not an error introduced by locale priority merging.
+The legacy locale configuration ended at `U+FFEF`, which excluded supplementary-plane CJK extensions even when their source font contained outlines. The CN and TC configurations now explicitly include Extensions I (`U+2EBF0–U+2EE5F`), G (`U+30000–U+3134F`), H (`U+31350–U+323AF`), and J (`U+323B0–U+3347F`). CN provides source coverage for all four ranges; TC supplements the available fallback outlines where applicable.
+
+The CJK variable-font merge path also creates a Windows UCS-4 cmap subtable (format 12) when a base Maple font only has BMP cmap tables. The locale merge trims unmapped glyphs from each input before combining faces, keeping the final static TrueType glyph count below its `65,535`-glyph limit while retaining the priority-order Unicode mappings.
 
 Do not add a second same-language fallback family after Maple on this device without a dedicated framework-level validation: that experiment caused a boot loop on CPH2747 during real-device testing and has been reverted. The current boot-proven profile therefore intentionally replaces each original CJK family with Maple only.
 
-That leaves Extensions G–J unresolved in the current profile. A future enhancement must use a source font that actually contains those outlines, explicitly add the relevant supplementary-plane ranges to each locale configuration, and validate a minimal staged profile before it can safely replace the existing all-CJK module.
+The rebuilt CN regular NF face and the regenerated AllCJK regular face contain Ext G/H/I/J mappings. Before replacing the device module, rebuild all 16 CN NF styles, merge all 16 AllCJK styles, and run the complete device validation sequence; the previously boot-proven ZIP remains the baseline until that staged validation is complete.
 
 A unit test in [`test_cjk_locale_merge.py`](../scripts/tests/test_cjk_locale_merge.py) verifies that a codepoint collision keeps the base locale mapping while non-conflicting codepoints from later locales are added.
 
