@@ -126,13 +126,39 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 
 ---
 
+## Mobile vertical-metrics experiment
+
+### Experiment setup
+
+Two isolated test modules were built by copying the existing 16 final `NF-AllCJK` static TTFs and patching only their declared `hhea`, OS/2 Typo, and OS/2 Win vertical metrics. The real outline bounds (`head.yMin/yMax`) were intentionally retained. The generated ZIPs and staged files are under `font_module_dev/experiments/`:
+
+| Candidate | Declared ascent/descent | Module ID | Result |
+|---|---:|---|---|
+| `ascent-970` | `970/-300` | `maple-font-ascent-970` | No visible improvement in affected applications |
+| `ascent-950` | `950/-300` | `maple-font-ascent-950` | No visible improvement in affected applications |
+
+The owner installed the experimental patched module(s) on the target device and reported that previously defective application layouts looked indistinguishable from the original module. This invalidates the working assumption that reducing only the final font's declared ascent is sufficient to improve the observed Android UI layout defect.
+
+### Interpretation and next steps
+
+The result does not prove that font metrics are irrelevant. It does show that the tested application path either ignores these patched static-table fields, derives its layout from different metrics or cached typefaces, or is dominated by glyph geometry/baseline placement and a fixed application layout. Do not promote these two patched-metric packages as a fix.
+
+Future investigation should prioritize, in order:
+
+1. Capture Android `Paint.FontMetricsInt` and actual text layout measurements for the original and patched fonts in a minimal test application, including `includeFontPadding` variations.
+2. Verify that an experiment module is mounted and selected by the affected process after reboot; collect FontManager/typeface logs and compare font checksums as visible to the application process.
+3. Compare the original system UI font's baseline and visible CJK ink bounds against Maple's CJK transform (`y_scale` and `y_shift`) rather than modifying only final vertical tables.
+4. If CJK geometry is implicated, rebuild an isolated candidate from source with a conservative CJK vertical scale/shift change, then repeat the Android-side measurements before broad real-app testing.
+
 ## 未完成 / 待下一任继续
 
 1. **CJK Extension G–J 字形覆盖**：修改 locale 配置 ranges + 重新 CJK build
 2. **模块体积缩减**：当前 16 个 full CJK 字体约 388.5 MiB（模块 ZIP 195.6 MiB）；可考虑选择性打包或 subset
-3. **APatch 兼容性**：未测试
-4. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
-5. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
+3. **Native 自适应配置刷新器**：实现显式触发、解析 XML、fail-closed、保留 last-known-good 的设备端生成器；详细约束见 `report.md`
+4. **Android 度量/布局诊断**：建立最小测试应用，采集 `Paint.FontMetricsInt`、固定高度容器和实际渲染截图，解释最终属性 patch 无可见效果的原因
+5. **APatch 兼容性**：未测试
+6. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
+7. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
 
 ### OpenType Collection（TTC）候选方案
 

@@ -97,6 +97,36 @@ class PublicCliContractTest(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)["behavior"]["formats"], ["ttf"])
         self.assertEqual(result.stderr, "")
 
+    def test_output_dir_is_forwarded_to_runtime_context(self) -> None:
+        resolver = MagicMock()
+        font_config = MagicMock()
+        font_config.to_dict.return_value = {}
+        runtime_context = MagicMock()
+        runtime_context.to_dict.return_value = {}
+        resolver.resolve.return_value = font_config
+        resolver_factory = MagicMock(return_value=resolver)
+        runtime_context_factory = MagicMock(return_value=runtime_context)
+        with (
+            patch("scripts.pipeline.orchestrator.configure_logging"),
+            patch("builtins.print"),
+            patch(
+                "scripts.pipeline.orchestrator.BuildConfigResolver", resolver_factory
+            ),
+            patch(
+                "scripts.pipeline.orchestrator.BuildRuntimeContext.from_config",
+                runtime_context_factory,
+            ),
+        ):
+            run_build_cli(
+                ["--dry", "--output-dir", "font_module_dev/experiments/test"],
+                version="v7.9",
+            )
+
+        runtime_context_factory.assert_called_once_with(
+            font_config,
+            output_root="font_module_dev/experiments/test",
+        )
+
     def test_pipeline_owns_cli_execution(self) -> None:
         self.assertFalse(hasattr(cli, "main"))
 

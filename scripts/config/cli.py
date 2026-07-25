@@ -133,6 +133,12 @@ def build_parser(version: str | None = None) -> argparse.ArgumentParser:
         help="Reuse font cache of TTF, OTF, and Woff2 formats",
     )
     build_group.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Write all build artifacts to this directory instead of fonts.",
+    )
+    build_group.add_argument(
         "--archive",
         action="store_true",
         help="Build font archives with config and license. If it has the `--cache` flag, only archive NF and CJK formats",

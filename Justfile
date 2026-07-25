@@ -49,6 +49,22 @@ build-all-cjk:
 cjk-audit:
     uv run python font_module_dev/audit_cjk_extensions.py --include-built
 
+# Inspect declared vertical metrics and actual outline bounds before device testing.
+vertical-audit font="fonts/NF-AllCJK/MapleMono-NF-AllCJK-Regular.ttf":
+    uv run python -m font_module_dev.audit_vertical_metrics {{ font }}
+
+# Dry-run a compact CJK experiment without changing the verified fonts/ tree.
+mobile-dry line_height="0.95" output_dir="font_module_dev/experiments/line-height-0.95":
+    uv run build.py --cjk cn,jp,tc,kr --format ttf --no-hinted --line-height {{ line_height }} --output-dir {{ output_dir }} --dry
+
+# Copy and patch the final AllCJK faces into a separate mobile-metric experiment.
+mobile-patch ascent="970" descent="-300" experiment="ascent-970":
+    uv run python -m font_module_dev.patch_vertical_metrics --ascent {{ ascent }} --descent {{ descent }} --output-dir font_module_dev/experiments/{{ experiment }}/fonts
+
+# Package an isolated module with a distinct ID from an experiment directory.
+mobile-module experiment="ascent-970" version="metrics-a970-d300":
+    uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev/experiments/{{ experiment }}/fonts --module-dir font_module_dev/experiments/{{ experiment }}/module --output font_module_dev/experiments/{{ experiment }}/maple-font-{{ experiment }}.zip --module-id maple-font-{{ experiment }} --module-name "Maple Mono NF AllCJK {{ experiment }}" --version {{ version }}
+
 # Print the planned full AllCJK merge and fail if inputs are missing.
 merge-dry:
     uv run python merge_cjk_locales.py --dry

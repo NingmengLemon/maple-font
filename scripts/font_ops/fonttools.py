@@ -24,6 +24,7 @@ class OS2Table(Protocol):
     sCapHeight: int
     sTypoAscender: int
     sTypoDescender: int
+    sTypoLineGap: int
     sxHeight: int
     ulCodePageRange1: int
     usWeightClass: int
@@ -55,6 +56,7 @@ class HheaTable(Protocol):
     caretSlopeRise: int
     caretSlopeRun: int
     descent: int
+    lineGap: int
     ascender: int
     descender: int
     numberOfHMetrics: int

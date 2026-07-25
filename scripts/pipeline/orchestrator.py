@@ -1105,7 +1105,10 @@ def main(args: list[str] | None = None, version: str | None = None) -> None:
         configure_logging()
         resolver = BuildConfigResolver(version_tag=resolved_version)
         font_config = resolver.resolve(parsed_args)
-        runtime_context = BuildRuntimeContext.from_config(font_config)
+        runtime_context = BuildRuntimeContext.from_config(
+            font_config,
+            output_root=parsed_args.output_dir or "fonts",
+        )
 
         if parsed_args.dry:
             if is_ci():

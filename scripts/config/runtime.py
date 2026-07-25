@@ -60,8 +60,11 @@ class BuildRuntimeContext:
     resolved_vertical_metric: tuple[int, int]
 
     @classmethod
-    def from_config(cls, config: ResolvedConfig) -> BuildRuntimeContext:
-        output_root = "fonts"
+    def from_config(
+        cls,
+        config: ResolvedConfig,
+        output_root: str = "fonts",
+    ) -> BuildRuntimeContext:
         output_ttf = join_path(output_root, "TTF")
         output_ttf_hinted = join_path(output_root, "TTF-AutoHint")
         return cls(
