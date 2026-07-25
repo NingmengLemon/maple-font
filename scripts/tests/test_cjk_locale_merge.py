@@ -7,11 +7,10 @@ from pathlib import Path
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
+
 from font_module_dev.generate_configs import rewrite_config
 from merge_cjk_locales import merge_chain
-from scripts.cjk.variable import _merge_cmap
 from scripts.font_ops.fonttools import TTFont
-from scripts.font_ops.merge import merge_ttfonts
 
 
 def write_test_font(path: Path, glyphs: dict[int, str]) -> None:
@@ -61,65 +60,14 @@ class CJKLocaleMergeTest(unittest.TestCase):
                 cmap = merged.getBestCmap()
                 self.assertIsNotNone(cmap)
                 assert cmap is not None
-                # The Unicode subsetter canonicalizes glyph names, while the
-                # cmap values retain the configured locale-priority mapping.
-                self.assertEqual(cmap[0x4E00], "uni4E00")
-                self.assertEqual(cmap[0x4E01], "uni4E01")
-                self.assertEqual(cmap[0x4E02], "uni4E02")
-                self.assertEqual(cmap[0x4E03], "uni4E03")
+                self.assertEqual(cmap[0x4E00], "cn_one")
+                self.assertEqual(cmap[0x4E01], "cn_two")
+                self.assertEqual(cmap[0x4E02], "jp_three")
+                self.assertEqual(cmap[0x4E03], "tc_four")
             finally:
                 merged.close()
 
             self.assertEqual(list(root.glob(".merge_tmp_*")), [])
-
-    def test_merge_cmap_adds_format_12_for_supplementary_codepoints(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            base_path = root / "base.ttf"
-            extra_path = root / "extra.ttf"
-            write_test_font(base_path, {0x4E00: "base"})
-            write_test_font(extra_path, {0x30000: "supplementary"})
-
-            base = TTFont(base_path)
-            extra = TTFont(extra_path)
-            try:
-                added = _merge_cmap(base, extra, {"supplementary"})
-                self.assertEqual(added, 1)
-                self.assertTrue(
-                    any(
-                        table.format == 12
-                        and table.platformID == 3
-                        and table.platEncID == 10
-                        for table in base["cmap"].tables
-                    )
-                )
-                cmap = base.getBestCmap()
-                self.assertIsNotNone(cmap)
-                assert cmap is not None
-                self.assertEqual(cmap[0x30000], "supplementary")
-            finally:
-                base.close()
-                extra.close()
-
-    def test_locale_merge_preserves_supplementary_cmap_within_glyph_limit(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            base_path = root / "base.ttf"
-            extra_path = root / "extra.ttf"
-            write_test_font(base_path, {0x4E00: "base", 0x30000: "ext_g"})
-            write_test_font(extra_path, {0x4E00: "extra", 0x31350: "ext_h"})
-
-            merged = merge_ttfonts(str(base_path), str(extra_path))
-            try:
-                cmap = merged.getBestCmap()
-                self.assertIsNotNone(cmap)
-                assert cmap is not None
-                self.assertEqual(cmap[0x4E00], "base")
-                self.assertEqual(cmap[0x30000], "ext_g")
-                self.assertEqual(cmap[0x31350], "ext_h")
-                self.assertLessEqual(merged["maxp"].numGlyphs, 0xFFFF)
-            finally:
-                merged.close()
 
     def test_config_retains_original_cjk_fallback_after_maple_faces(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

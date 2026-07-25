@@ -15,8 +15,6 @@ from scripts.cjk.resolver import (
     serialize_cjk_build_config,
 )
 from scripts.cjk.config import CJKSourceConfig
-from scripts.cjk.builder import get_allowed_codepoints
-from scripts.font_ops.fonttools import TTFont
 from scripts.cjk.presets import build_preset_config, get_preset
 
 
@@ -272,33 +270,6 @@ class CJKConfigSurfaceTest(unittest.TestCase):
             ["url"],
         )
         self.assertNotIn("download_url", source_schema["properties"])
-
-    def test_cn_and_tc_configs_select_supplementary_cjk_extensions(self) -> None:
-        extensions = (
-            (0x2EBF0, 0x2EE5F),
-            (0x30000, 0x3134F),
-            (0x31350, 0x323AF),
-            (0x323B0, 0x3347F),
-        )
-        for locale in ("cn", "tc"):
-            with self.subTest(locale=locale):
-                config = config_from_json(f"source/cjk/{locale}/config-{locale}.json")
-                self.assertEqual(config.unicode.filter_encoding, None)
-                self.assertTrue(
-                    all(extension in config.unicode.ranges for extension in extensions)
-                )
-
-                font = TTFont(config.source.path, lazy=True)
-                try:
-                    allowed = get_allowed_codepoints(font, config)
-                finally:
-                    font.close()
-                self.assertTrue(
-                    all(
-                        any(start <= codepoint <= end for codepoint in allowed)
-                        for start, end in extensions
-                    )
-                )
 
     def test_builtin_jp_download_selects_fixed_archive_member(self) -> None:
         config = config_from_json("source/cjk/jp/config-jp.json")

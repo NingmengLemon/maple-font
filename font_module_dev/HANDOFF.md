@@ -55,21 +55,15 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 
 ---
 
-## CJK Extension G/H/I/J 进度
+## 已知限制：CJK Extension G/H/I/J 无字形
 
-### 已修复的构建路径
+### 现象
 
-CN 与 TC locale 配置现已包含 Extension I (`U+2EBF0–U+2EE5F`)、G (`U+30000–U+3134F`)、H (`U+31350–U+323AF`) 和 J (`U+323B0–U+3347F`)。同时修复了两项此前阻断 supplementary-plane 输出的实现缺陷：
+字体测试网站显示 CJK Extension G/H/I/J 为空，且无 tofu fallback。
 
-1. CJK variable-font 合并会在基础字体只有 BMP cmap 时创建 Windows UCS-4 format-12 cmap subtable。
-2. locale static merge 会对已合并输入执行 Unicode 可达字形 subset，避免带入大量无映射字形而超过 TrueType `maxp.numGlyphs` 的 65,535 限制。
+### 根因
 
-### 已验证结果
-
-- `uv run task.py cjk --config source/cjk/cn/config-cn.json` 成功；生成的 CN variable/static 文件含 Ext I=8、G=80、H=27、J=19。
-- `uv run build.py --cjk cn --format ttf --least-styles --cache` 成功；生成的 `fonts/NF-CN/MapleMono-NF-CN-Regular.ttf` 含相同覆盖。
-- `uv run python merge_cjk_locales.py --styles Regular` 成功；`fonts/NF-AllCJK/MapleMono-NF-AllCJK-Regular.ttf` 含 Ext I=8、G=80、H=27、J=19，glyph count 为 53,088（低于上限）。
-- 相关 unit test、Ruff 和 Pyrefly 已通过。
+当前所有四个 locale 源配置（config-cn.json 等）的 `unicode.ranges` 最高只到 `U+FFEF`（BMP），不包含 supplementary-plane 范围。因此无论源字体 WenYuan 中是否有对应字形，build pipeline 都不会将其包含进输出字体。
 
 ### 源字体覆盖现状（audit_cjk_extensions.py 报告）
 
@@ -78,9 +72,9 @@ CN 与 TC locale 配置现已包含 Extension I (`U+2EBF0–U+2EE5F`)、G (`U+30
 | WenYuanRoundedSCVF.ttf (CN) | 80 | 27 | 8 | 19 |
 | ResourceHanRoundedJP-VF.otf (JP) | 2 | 0 | 0 | 0 |
 | ChironGoRoundTCVF.ttf (TC/KR) | 27 | 23 | 1 | 35 |
-| **当前输出 AllCJK（Regular staged build）** | **80** | **27** | **8** | **19** |
+| **当前输出 AllCJK** | **0** | **0** | **0** | **0** |
 
-WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP、TC、KR 的既有输出尚未重建；AllCJK Regular 目前由已更新的 CN 贡献完整 ExtG–J 覆盖。
+源字体 WenYuan_含有_ ExtG 到 J 的字形，但未被包含进构建输出，因为 locale config 没有声明这些 unicode 范围。
 
 ### 失败尝试
 
@@ -88,13 +82,15 @@ WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP�
 
 ### 后续方案
 
-仍需完成完整的 staged release rebuild：
+正确路径是在 **source/cjk/*/config-*.json** 的 `unicode.ranges` 中加入 supplementary-plane 范围后**重新构建 CJK 字体**。这需要：
 
-1. 重建 CN 的全部 16 个 NF 样式；必要时重建 TC，验证其补充覆盖。
-2. 合并全部 16 个 AllCJK 样式并以审计脚本验证每个关键样式。
-3. 使用 `build_module.py` 打包新模块后，在设备上按照 `DEVICE_VALIDATION.md` 验证启动和 App 兼容性。
+1. 修改 locale config（例如在 config-cn.json 中添加 `0x2EBF0-0x2EE5F`, `0x30000-0x3134F`, `0x31350-0x323AF`, `0x323B0-0x3347F`）
+2. 重新执行完整 CJK build（包括下载源字体、合并、生成输出）
+3. 在模块中替换新的字体文件
 
-注意这是**字体源范围扩展 + 重构建**任务，不是 XML 配置任务。此前实机稳定 ZIP 仍是安全回退基线，未完成完整构建和设备验证前不得替换它。
+注意这是**字体源范围扩展 + 重构建**任务，不是 XML 配置任务。在本地电脑完成所有构建和清理后，再打包新的模块。
+
+**在修改任何 locale config 或重新构建字体前，先确认当前工作目录干净，不影响已实机验证能启动的模块和配置文件。**
 
 ---
 
@@ -119,9 +115,9 @@ WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP�
 
 ## 已完成验证
 
-- Ruff lint / format check 通过（CJK supplementary cmap、locale merge、配置测试）
+- Ruff lint / format check 通过（generate_configs, build_module, merge_cjk_locales, test_cjk_locale_merge）
 - Pyrefly type checker 通过（0 errors）
-- CJK focused unit suite 通过（46 tests：合并优先级、supplementary cmap、配置范围、subset 与 build pipeline）
+- 合并单测通过（2 tests：merge_chain 优先级映射 + 配置生成不引入额外 CJK family）
 - 所有 16 个合并字体 FontTools 校验通过
 - 四层 XML 均解析合法
 - 模块 XML 引用与字体资产一一匹配
@@ -132,7 +128,7 @@ WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP�
 
 ## 未完成 / 待下一任继续
 
-1. **CJK Extension G–J 发布验证**：代码路径与 Regular staged 构建已验证；仍需重建全部 16 个样式、打包，并完成实机验证
+1. **CJK Extension G–J 字形覆盖**：修改 locale 配置 ranges + 重新 CJK build
 2. **模块体积缩减**：当前 16 个 full CJK 字体约 388.5 MiB（模块 ZIP 195.6 MiB）；可考虑选择性打包或 subset
 3. **APatch 兼容性**：未测试
 4. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试

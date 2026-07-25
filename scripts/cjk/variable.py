@@ -6,9 +6,7 @@ from copy import deepcopy
 from io import BytesIO
 import math
 from pathlib import Path
-
-from fontTools.ttLib.tables._c_m_a_p import CmapSubtable
-from typing import Any, Iterable, Protocol, cast
+from typing import Any, Iterable, cast
 
 from scripts.font_ops.fonttools import TTFont
 from fontTools.ttLib.tables._g_l_y_f import GlyphCoordinates
@@ -25,13 +23,6 @@ MIN_WEIGHT_SUPPORT = (-1.0, -1.0, 0.0)
 MAX_WEIGHT_SUPPORT = (0.0, 1.0, 1.0)
 CORE_GLYF_TABLES = ("glyf", "hmtx")
 VARIABLE_GLYF_TABLES = (*CORE_GLYF_TABLES, "gvar")
-
-
-class CmapSubtableData(Protocol):
-    platformID: int
-    platEncID: int
-    language: int
-    cmap: dict[int, str]
 
 
 def load_font_eager(font_path: str | Path) -> TTFont:
@@ -590,31 +581,15 @@ def _merge_cmap(base: TTFont, extra: TTFont, added_glyphs: set[str]) -> int:
     }
 
     merged_codepoints: set[int] = set()
-    unicode_tables = [table for table in base["cmap"].tables if table.isUnicode()]
-    for table in unicode_tables:
-        supported_entries = {
-            codepoint: glyph_name
-            for codepoint, glyph_name in extra_entries.items()
-            if _cmap_supports_codepoint(table.format, codepoint)
-        }
-        table.cmap.update(supported_entries)
-        merged_codepoints.update(supported_entries)
-
-    supplementary_entries = {
-        codepoint: glyph_name
-        for codepoint, glyph_name in extra_entries.items()
-        if codepoint > 0xFFFF
-    }
-    if supplementary_entries and not any(
-        _cmap_supports_codepoint(table.format, 0x10000) for table in unicode_tables
-    ):
-        table = cast(CmapSubtableData, CmapSubtable.newSubtable(12))
-        table.platformID = 3
-        table.platEncID = 10
-        table.language = 0
-        table.cmap = supplementary_entries
-        base["cmap"].tables.append(table)
-        merged_codepoints.update(supplementary_entries)
+    for table in base["cmap"].tables:
+        if table.isUnicode():
+            supported_entries = {
+                codepoint: glyph_name
+                for codepoint, glyph_name in extra_entries.items()
+                if _cmap_supports_codepoint(table.format, codepoint)
+            }
+            table.cmap.update(supported_entries)
+            merged_codepoints.update(supported_entries)
 
     return len(merged_codepoints)
 

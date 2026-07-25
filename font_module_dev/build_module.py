@@ -22,7 +22,7 @@ MODULE_DIR = Path(__file__).resolve().parent / "module"
 SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 FONTS_DIR = ROOT / "fonts" / "NF-AllCJK"
 MODULE_FONTS_DIR = MODULE_DIR / "system" / "fonts"
-VERSION = "v0.1.1-dev"
+VERSION = "v0.1.2-dev"
 
 REQUIRED_MODULE_FILES = (
     Path("customize.sh"),
