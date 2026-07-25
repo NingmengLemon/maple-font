@@ -11,18 +11,22 @@
 ## 审阅发现的 P0 缺陷与修复
 
 ### P0-1：字体文件名不匹配
+
 上一任生成的 XML 引用 `MapleMonoNF-AllCJK-*.ttf`（无连字符），合并输出为 `MapleMono-NF-AllCJK-*.ttf`。
 → 已通过 generate_configs.py 修复。
 
 ### P0-2：KernelSU 不挂载 system overlay
+
 KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 → 用户设备已安装 hybrid_mount。已通过 device_capture/ 确认挂载有效。
 
 ### P0-3：OOS fonts_base.xml 运行时拼接
+
 上一任的 post-fs-data.sh 用 sed 文本拼接补充 fallback fragment，会产生非法 XML。
 → 已删除；改为从实机样本生成完整四层 XML overlay。
 
 ### P0-4：自定义 update-binary 包装层
+
 上一任手写的 update-binary 存在未初始化变量和引用问题。
 → 已替换为 Magisk 官方最小入口 + KernelSU Next 原生安装器。
 
@@ -30,7 +34,7 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 
 ## 当前稳定模块
 
-### 已实机验证能正常启动、Zygisk 正常、App 兼容的配置：
+### 已实机验证能正常启动、Zygisk 正常、App 兼容的配置
 
 - **字体文件：** `fonts/NF-AllCJK/MapleMono-NF-AllCJK-*.ttf`（16 个静态 face）
 - **XML 覆盖：** 四层 overlay（system/etc × 2 + system_ext/etc × 2）
@@ -41,7 +45,7 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 - **XML 生成器：** `generate_configs.py` — 从实机 samples/ 生成 overlay
   - CJK family 仅替换为 Maple 静态 face，不拼接 Noto fallback
 - **构建器：** `build_module.py` — 再生 XML → 复制字体 → 校验引用 → 打包 ZIP
-  - ZIP 输出：`font_module_dev/maple-font-module-v0.1.0-dev.zip`（~195.6 MiB）
+  - ZIP 输出：`font_module_dev/maple-font-module-v0.1.1-dev.zip`（~197.9 MiB）
 
 ### 关键环境要求（写入 DEVICE_VALIDATION.md）
 
@@ -50,6 +54,7 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 3. **旧 MapleMono-NF-CN-Regular 模块必须禁用**：避免同时有新旧两个模块竞争字体和 XML。
 
 ---
+
 ## CJK Extension G/H/I/J 进度
 
 ### 已修复的构建路径
@@ -67,6 +72,7 @@ CN 与 TC locale 配置现已包含 Extension I (`U+2EBF0–U+2EE5F`)、G (`U+30
 - 相关 unit test、Ruff 和 Pyrefly 已通过。
 
 ### 源字体覆盖现状（audit_cjk_extensions.py 报告）
+
 | 源变体 | ExtG | ExtH | ExtI | ExtJ |
 |--------|------|------|------|------|
 | WenYuanRoundedSCVF.ttf (CN) | 80 | 27 | 8 | 19 |
@@ -77,10 +83,13 @@ CN 与 TC locale 配置现已包含 Extension I (`U+2EBF0–U+2EE5F`)、G (`U+30
 WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP、TC、KR 的既有输出尚未重建；AllCJK Regular 目前由已更新的 CN 贡献完整 ExtG–J 覆盖。
 
 ### 失败尝试
+
 尝试在 CJK XML family 中将原有 Noto CJK face 拼接在 Maple face 之后以作为 fallback，会导致 bootloop（CPH2747 framework 不支持在同一 language family 中混合静态 Maple face 与带 TTC index / variable axis 的原始 face）。
 
 ### 后续方案
+
 仍需完成完整的 staged release rebuild：
+
 1. 重建 CN 的全部 16 个 NF 样式；必要时重建 TC，验证其补充覆盖。
 2. 合并全部 16 个 AllCJK 样式并以审计脚本验证每个关键样式。
 3. 使用 `build_module.py` 打包新模块后，在设备上按照 `DEVICE_VALIDATION.md` 验证启动和 App 兼容性。
@@ -104,7 +113,7 @@ WenYuan 含有 ExtG 到 J 的字形，CN 输出现在已保留这些映射。JP�
 | `font_module_dev/device_capture/` | 所有设备诊断捕获 | 实机 adb 只读命令 |
 | `font_module_dev/report.md` | 调研报告 | 维护中 |
 | `font_module_dev/DEVICE_VALIDATION.md` | 设备验证命令集合 | 维护中 |
-| `font_module_dev/maple-font-module-v0.1.0-dev.zip` | 构建产物 | build_module.py |
+| `font_module_dev/maple-font-module-v0.1.1-dev.zip` | 构建产物 | build_module.py |
 
 ---
 

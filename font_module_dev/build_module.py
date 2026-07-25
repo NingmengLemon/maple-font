@@ -22,7 +22,7 @@ MODULE_DIR = Path(__file__).resolve().parent / "module"
 SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 FONTS_DIR = ROOT / "fonts" / "NF-AllCJK"
 MODULE_FONTS_DIR = MODULE_DIR / "system" / "fonts"
-VERSION = "v0.1.0-dev"
+VERSION = "v0.1.1-dev"
 
 REQUIRED_MODULE_FILES = (
     Path("customize.sh"),
@@ -111,7 +111,7 @@ def validate_module(font_files: set[str]) -> None:
 
 
 def copy_fonts() -> set[str]:
-    source_fonts = sorted(FONTS_DIR.glob("*.ttf"))
+    source_fonts = sorted(FONTS_DIR.glob(f"{FONT_PREFIX}-*.ttf"))
     if not source_fonts:
         raise FileNotFoundError(
             f"No merged fonts found in {FONTS_DIR}. Run merge_cjk_locales.py first."

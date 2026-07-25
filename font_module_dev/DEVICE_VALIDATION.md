@@ -26,7 +26,7 @@ For a system-font module, disable **Umount modules by default** in KernelSU Next
 ```powershell
 uv run python .\merge_cjk_locales.py --dry
 uv run python .\font_module_dev\build_module.py
-Get-ChildItem .\font_module_dev\maple-font-module-v0.1.0-dev.zip
+Get-ChildItem .\font_module_dev\maple-font-module-v0.1.1-dev.zip
 ```
 
 Install the ZIP with the active root manager application only. Do not flash it from recovery.
