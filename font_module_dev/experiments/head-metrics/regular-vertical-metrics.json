@@ -1,0 +1,20 @@
+[
+  {
+    "file": "font_module_dev\\experiments\\head-metrics\\fonts\\MapleMono-NF-AllCJK-Regular.ttf",
+    "face_index": null,
+    "units_per_em": 1000,
+    "hhea_ascent": 928,
+    "hhea_descent": -244,
+    "typo_ascender": 928,
+    "typo_descender": -244,
+    "typo_line_gap": 0,
+    "win_ascent": 928,
+    "win_descent": 244,
+    "head_y_max": 928,
+    "head_y_min": -244,
+    "glyph_y_max": 1308.5714285714287,
+    "glyph_y_min": -750.8913043478261,
+    "glyphs_above_hhea": 415,
+    "glyphs_below_hhea": 232
+  }
+]

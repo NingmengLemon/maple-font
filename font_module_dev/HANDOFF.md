@@ -150,12 +150,55 @@ Future investigation should prioritize, in order:
 3. Compare the original system UI font's baseline and visible CJK ink bounds against Maple's CJK transform (`y_scale` and `y_shift`) rather than modifying only final vertical tables.
 4. If CJK geometry is implicated, rebuild an isolated candidate from source with a conservative CJK vertical scale/shift change, then repeat the Android-side measurements before broad real-app testing.
 
+## Android layout diagnostic (Phase A1 started)
+
+A local-only framework Android diagnostic application is now available at `font_module_dev/android_layout_diagnostic/`. It creates fixed-height single-line, multiline, title, list-row, chat, and button-like `TextView` cases with both `includeFontPadding` states, automatic/explicit line-height cases, and logs `Paint.FontMetricsInt`, view geometry, baselines, and Android layout bounds.
+
+- Build with `font_module_dev\\android_layout_diagnostic\\gradlew.bat -p font_module_dev\\android_layout_diagnostic assembleDebug` from `cmd.exe`.
+- A Maple-active run loaded `/system/fonts/MapleMono-NF-AllCJK-Regular.ttf` explicitly (`candidate_load=success`); its Logcat report and screenshot are saved under `font_module_dev/device_capture/`. The active `sans-serif` and explicit candidate necessarily matched in that state.
+- A second run after the owner disabled the module and rebooted proved that the Maple file was no longer mounted. It recorded original-system `sans-serif` metrics of `top/ascent/descent/bottom = -67/-58/15/18` at 20sp, compared with Maple's `-83/-64/19/48` at the same size. The automatic single-line view was 90 px for the system face and 83 px for Maple. The captured reference-only report is `layout-diagnostic-reference.txt`.
+- To compare both faces in one process while Maple remains disabled, the module's Regular TTF was copied into the diagnostic app's private `files/` directory using `adb` plus `run-as`; `layout-diagnostic-reference-with-maple.txt` proves its `candidate_load=success`. It confirms the metric differences above across all fixed-height cases. This private-file staging is diagnostic-only and does not modify the module or system partitions.
+- The evidence establishes that Android reads materially different metrics and produces different baseline/layout positions. It does not yet reproduce the failing third-party layout or establish that a final-table metric patch changes the observed behavior. Phase A1 should next add a concrete reproduction matching an affected app before source geometry experiments.
+
+### QQ private-chat header reproduction
+
+The owner supplied a repeatable affected page: QQ private chat with `柠檬味的凝萌`, where the status under the nickname is clipped. The collected UI hierarchies make the failure mechanically visible:
+
+| State | Nickname bounds | Status `ViewFlipper` bounds | Header parent bounds |
+|---|---|---|---|
+| Original system font | `y=163..231` (68 px) | `y=231..267` (36 px) | `y=141..290` (149 px) |
+| Maple active | `y=163..270` (107 px) | `y=270..290` (20 px) | `y=141..290` (149 px) |
+
+The parent header remains a fixed 149 px, while the nickname allocation grows by 39 px. The lower status area loses 16 px and terminates exactly at the parent bottom, which matches the observed clipping. This is direct evidence that the QQ failure is layout-space exhaustion caused by the system font's changed text layout, not merely a visual glyph-bound issue.
+
+The diagnostic app now includes a QQ-shaped stacked/header case and a pixel-positioned overlap case derived from the captured hierarchy. With Maple active, the 30sp title's Android layout requires 124 px against 111 px for the original system face; its `Paint.FontMetricsInt` is `-124/-96/28/72` (`top/ascent/descent/bottom`) versus `-100/-88/23/26` for the original system face. The app's 20 px status strip also overflows in both fonts by construction, but Maple's calculated layout is 58 px versus the original 52 px. The actual QQ allocation delta is larger because QQ's own title text size and layout rules differ from the diagnostic approximation.
+
+A FontTools audit captures the structural mismatch: Maple Regular declares `hhea/Typo = 1020/-300` (1320 units total), whereas the original `SysSans-Hans-Regular.ttf` declares `hhea = 928/-244` (1172 units total). Maple's outlines also extend to `1309/-761`; reducing only the final declared tables cannot make those outlines physically more compact and has already shown no visible fix in the preceding `ascent-970` / `ascent-950` module experiments.
+
+This conclusion was independently confirmed without a reboot: while Maple was disabled, a private diagnostic-app copy of Maple was patched to the original system's `hhea/Typo/Win = 928/-244` metrics. Android changed the candidate's `ascent/descent` and baseline to exactly match the original-system face, and the QQ-shaped title layout contracted from 124 px to 111 px—the original-system result. Its `top/bottom` remained Maple's `-124/72`, proving that this Android path uses `ascent/descent` for layout, not the larger `top/bottom` values. The prior no-visible-improvement metric module result is therefore most plausibly explained by the original experiments not being selected by the affected process, rather than by Android ignoring the patched tables.
+
+The staged complete 16-face module `maple-font-system-metrics.zip` was installed and rebooted successfully. It is mounted as `/system/fonts/MapleMono-NF-AllCJK-Regular.ttf`; its SHA-256 matches the staged module asset (`eb8addcd6b9575768f00dc9f51b004292087169542db9b4efdbaf9940b856406`), and the active QQ process (`com.tencent.mobileqq`, PID captured during validation) maps that exact system path. The diagnostic app reports the expected `ascent/descent = -88/23` and 111 px QQ-shaped title layout in the active system face, confirming the system-wide experiment is selected.
+
+**Correction: do not treat this module as a QQ fix.** The owner rechecked the live page and reported that the header is still abnormal. The immediate re-capture confirms the QQ hierarchy is unchanged from the original Maple state: `title y=163..270` and `status y=270..290` inside the fixed `y=141..290` parent. The private-app metric experiment proves only that Android framework `TextView` layout responds to the patched tables; it does not prove that QQ's proprietary header layout reads or applies the same values. The system-metrics ZIP must remain an experiment, not a promotion candidate.
+
+QQ maps the expected Regular, Medium, and Bold Maple files in its process, so this is not an asset-selection failure. A final-table `head` value is the remaining low-cost distinction: the current source font's real `head.yMax/yMin` are `1309/-761`, while the system-metrics experiment intentionally retained them. `patch_vertical_metrics.py` now supports paired `--head-y-max` / `--head-y-min` overrides, and `maple-font-head-metrics.zip` applies `hhea/Typo/Win/head = 928/-244` to all 16 faces. Its Regular audit confirms the table values but also confirms that hundreds of glyphs exceed this artificial head box; this candidate is a narrowly scoped QQ-renderer probe only, with significant clipping/metadata risk and no promotion path.
+
+The head-table probe was installed and verified on-device: `/system/fonts/MapleMono-NF-AllCJK-Regular.ttf` matches the active module asset SHA-256 (`bd106cb96e0108dd080a783f62b3b9c88e579f3d3f313599b4111637188afebb`), and the QQ process maps it. The owner reports the header visually restored. The captured QQ hierarchy confirms the decisive geometry change: nickname bounds shrink from `y=163..270` to `y=163..224`, and the status `ViewFlipper` moves from `y=270..290` to `y=224..260`, yielding a fully visible status line. The diagnostic app correspondingly reports the active face's `top/ascent/descent/bottom = -88/-88/23/24` for the title case. This demonstrates that QQ's layout path consults `head.yMax/yMin`, unlike the earlier Android framework-only experiment.
+
+**Safety result:** do not promote this package as a general stable release. The same forged `head` range conflicts with real outlines (`glyph_y_max=1308.57`, `glyph_y_min=-750.89` in Regular; 415 glyphs above and 232 below the declared range). It proves the causal table but introduces metadata risk. The owner performed a smoke test across Settings, notifications, browser, QQ chat content, Chinese, accented Latin, descenders, mathematical symbols, and Emoji: no clipping or missing glyphs were observed, and normal use remains readable. However, paragraphs appear crowded, CJK glyphs look large, rare `〱` visibly intersects glyphs on adjacent lines, and some extreme paragraphs have adjacent-line overlap. Keep the head-metrics package strictly as an owner-accepted temporary workaround; a truthful outline-scaling candidate is recorded in `ROADMAP.md` as quality work, not an immediate blocker.
+
+Evidence files: `qq-private-chat-maple.png`, `qq-private-chat-maple.xml`, `qq-private-chat-reference.png`, `qq-private-chat-reference.xml`, `qq-private-chat-system-metrics.png`, `qq-private-chat-system-metrics.xml`, `layout-diagnostic-qq-header-reference-with-maple.txt`, `layout-diagnostic-qq-header-system-metrics.txt`, `layout-diagnostic-system-metrics-module.txt`, `maple-regular-vertical-metrics.json`, and `sys-sans-hans-regular-vertical-metrics.json` under `font_module_dev/device_capture/`.
+
+## Development roadmap
+
+The complete staged roadmap, including Android layout diagnostics, configuration-drift detection, native explicit refresh, portable commands, optional KernelSU Next WebUI, font-content work, and release gates, is maintained in [ROADMAP.md](ROADMAP.md).
+
 ## 未完成 / 待下一任继续
 
 1. **CJK Extension G–J 字形覆盖**：修改 locale 配置 ranges + 重新 CJK build
 2. **模块体积缩减**：当前 16 个 full CJK 字体约 388.5 MiB（模块 ZIP 195.6 MiB）；可考虑选择性打包或 subset
 3. **Native 自适应配置刷新器**：实现显式触发、解析 XML、fail-closed、保留 last-known-good 的设备端生成器；详细约束见 `report.md`
-4. **Android 度量/布局诊断**：建立最小测试应用，采集 `Paint.FontMetricsInt`、固定高度容器和实际渲染截图，解释最终属性 patch 无可见效果的原因
+4. **Android 度量/布局诊断**：已完成原系统与 Maple 的初始 `Paint.FontMetricsInt` / 基线 / 布局边界对比，确认 QQ 实际使用 `head` bounds：`head=928/-244` 的完整模块已通过挂载、QQ 进程映射和标题栏恢复验证。由于该伪造 head range 与数百真实字形边界冲突，下一步是构建谨慎的源级 CJK 几何候选，并据真实新 outline bounds 写入 metrics/head；不得推广当前 head-table probe
 5. **APatch 兼容性**：未测试
 6. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
 7. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
@@ -187,8 +230,9 @@ Future investigation should prioritize, in order:
 
 ## 对下一任 Agent 的建议启动步骤
 
-1. 阅读 `font_module_dev/report.md` 了解 OxygenOS 16 字体体系
-2. 阅读 `font_module_dev/DEVICE_VALIDATION.md` 了解设备验证流程
-3. 阅读本 HANDOFF.md
-4. 检查 `git status --short` 确认当前工作区干净
-5. 决定下一步是解决 Ext G–J 字形、增量改进模块、还是发布打包
+1. 阅读 `font_module_dev/ROADMAP.md` 确认当前阶段、依赖和验收条件
+2. 阅读 `font_module_dev/report.md` 了解 OxygenOS 16 字体体系
+3. 阅读 `font_module_dev/DEVICE_VALIDATION.md` 了解设备验证流程
+4. 阅读本 HANDOFF.md
+5. 检查 `git status --short` 确认当前工作区干净
+6. 选择一个独立 workstream；不要并行混合 XML 刷新、字体几何、TTC 和 root-provider 兼容性改动

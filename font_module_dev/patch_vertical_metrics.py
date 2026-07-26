@@ -20,6 +20,8 @@ class VerticalMetricTarget:
     ascent: int
     descent: int
     line_gap: int
+    head_y_max: int | None
+    head_y_min: int | None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +43,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ascent", type=int, required=True)
     parser.add_argument("--descent", type=int, required=True)
     parser.add_argument("--line-gap", type=int, default=0)
+    parser.add_argument(
+        "--head-y-max",
+        type=int,
+        default=None,
+        help="Optional experimental head.yMax override; defaults to retaining real bounds.",
+    )
+    parser.add_argument(
+        "--head-y-min",
+        type=int,
+        default=None,
+        help="Optional experimental head.yMin override; defaults to retaining real bounds.",
+    )
     return parser
 
 
@@ -49,6 +63,14 @@ def validate_target(target: VerticalMetricTarget) -> None:
         raise ValueError("Ascender must be greater than descender.")
     if target.line_gap < 0:
         raise ValueError("Line gap cannot be negative.")
+    if (target.head_y_max is None) != (target.head_y_min is None):
+        raise ValueError("head.yMax and head.yMin must be provided together.")
+    if (
+        target.head_y_max is not None
+        and target.head_y_min is not None
+        and target.head_y_max <= target.head_y_min
+    ):
+        raise ValueError("head.yMax must be greater than head.yMin.")
 
 
 def patch_vertical_metrics(font: TTFont, target: VerticalMetricTarget) -> None:
@@ -63,6 +85,11 @@ def patch_vertical_metrics(font: TTFont, target: VerticalMetricTarget) -> None:
     os2.sTypoLineGap = target.line_gap
     os2.usWinAscent = target.ascent
     os2.usWinDescent = -target.descent
+
+    if target.head_y_max is not None and target.head_y_min is not None:
+        head = font.table("head")
+        head.yMax = target.head_y_max
+        head.yMin = target.head_y_min
 
 
 def patch_fonts(
@@ -98,12 +125,19 @@ def patch_fonts(
 
 def main() -> None:
     args = build_parser().parse_args()
-    target = VerticalMetricTarget(args.ascent, args.descent, args.line_gap)
+    target = VerticalMetricTarget(
+        args.ascent,
+        args.descent,
+        args.line_gap,
+        args.head_y_max,
+        args.head_y_min,
+    )
     validate_target(target)
     patched_paths = patch_fonts(args.source_dir, args.output_dir, target)
     print(
         f"Patched {len(patched_paths)} fonts in {args.output_dir}: "
-        f"hhea/Typo/Win=({target.ascent}, {target.descent}, {target.line_gap})"
+        f"hhea/Typo/Win=({target.ascent}, {target.descent}, {target.line_gap}), "
+        f"head=({target.head_y_max}, {target.head_y_min})"
     )
 
 

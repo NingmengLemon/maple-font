@@ -136,6 +136,10 @@ The native transformation must retain the conservative semantics of [`generate_c
 
 First validate the native transformer against the checked-in samples: it must produce equivalent XML semantics to [`generate_configs.py`](generate_configs.py). Then test on-device only as an explicit command: snapshot the underlying files, refresh, inspect generated XML and module assets, reboot, and run the existing post-install checks. Do not move generation into [`module/service.sh`](module/service.sh) unless a separate early-mount design is proven on the target root provider.
 
+## Development roadmap
+
+The integrated staged plan, acceptance criteria, native refresh state model, and optional KernelSU Next WebUI design are maintained in [ROADMAP.md](ROADMAP.md). The roadmap makes the portable explicit command path mandatory and treats WebUI only as an optional management layer.
+
 ## Required on-device verification
 
 Before installing, collect the output from the commands in [`DEVICE_VALIDATION.md`](DEVICE_VALIDATION.md). After installing and rebooting, collect its post-install section as well. The test must confirm both that the systemless files are mounted and that Android accepts the replacement XML; a successful ZIP installation alone is insufficient.

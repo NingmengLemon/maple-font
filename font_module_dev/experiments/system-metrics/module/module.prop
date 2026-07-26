@@ -1,0 +1,6 @@
+id=maple-font-system-metrics
+name=Maple Font System Metrics Experiment
+version=0.1.0-system-metrics
+versionCode=3
+author=Maple Font contributors
+description=Experimental systemless overlay generated from CPH2747_16.0.9.400 (EX01) samples. Magisk ready; KernelSU requires a system-mount metamodule such as meta-overlayfs.
