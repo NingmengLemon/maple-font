@@ -25,6 +25,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--module-id", required=True)
     parser.add_argument("--module-name", required=True)
     parser.add_argument("--version", required=True)
+    parser.add_argument(
+        "--description",
+        default=None,
+        help="Optional module.prop description override.",
+    )
     return parser
 
 
@@ -33,12 +38,15 @@ def update_module_prop(
     module_id: str,
     module_name: str,
     version: str,
+    description: str | None,
 ) -> None:
     replacements = {
         "id": module_id,
         "name": module_name,
         "version": version,
     }
+    if description is not None:
+        replacements["description"] = description
     lines = path.read_text(encoding="utf-8").splitlines()
     path.write_text(
         "\n".join(
@@ -66,6 +74,7 @@ def stage_module(
     module_id: str,
     module_name: str,
     version: str,
+    description: str | None,
 ) -> list[Path]:
     if module_dir.resolve() == TEMPLATE_MODULE_DIR.resolve():
         raise ValueError(
@@ -85,7 +94,13 @@ def stage_module(
         shutil.copy2(font, destination)
         copied.append(destination)
 
-    update_module_prop(module_dir / "module.prop", module_id, module_name, version)
+    update_module_prop(
+        module_dir / "module.prop",
+        module_id,
+        module_name,
+        version,
+        description,
+    )
     return copied
 
 
@@ -106,6 +121,7 @@ def main() -> None:
         args.module_id,
         args.module_name,
         args.version,
+        args.description,
     )
     write_zip(args.module_dir, args.output)
     print(f"Packaged {len(copied)} patched fonts: {args.output}")

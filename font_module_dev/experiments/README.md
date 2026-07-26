@@ -9,9 +9,11 @@ This directory contains isolated module trees for the Android font-layout invest
 | `ascent-970` | `hhea` and OS/2 `970/-300` | No visible QQ improvement. | Superseded. |
 | `ascent-950` | `hhea` and OS/2 `950/-300` | No visible QQ improvement. | Superseded. |
 | `system-metrics` | `hhea` and OS/2 `928/-244`, retaining actual `head` bounds | QQ still unchanged even though the process mapped the asset. | Superseded. |
-| `head-metrics` | `hhea`, OS/2, and `head` all `928/-244` | QQ nickname/status header recovered. | Owner-accepted temporary workaround only. |
+| `head-metrics` (**Headbound**) | `hhea`, OS/2, and `head` all `928/-244` | QQ nickname/status header recovered. | Owner-accepted temporary workaround only. |
 
-The `head-metrics` package is deliberately unsafe as a general font design: many real Maple glyphs exceed its forged `head` range. It establishes that QQ consults `head.yMax/yMin`; it must not be promoted as a stable module without genuine outline scaling and truthful bounds.
+**Headbound** is the designated name for the `head-metrics` workaround. The name emphasizes that it constrains the OpenType `head` bounds rather than shrinking actual glyph outlines. The `head-metrics` directory remains the historical experiment identifier; use the `mobile-headbound` recipe to rebuild an installable package named `maple-font-headbound.zip`.
+
+Headbound is deliberately unsafe as a general font design: many real Maple glyphs exceed its forged `head` range. It establishes that QQ consults `head.yMax/yMin`; it must not be promoted as a stable module without genuine outline scaling and truthful bounds.
 
 ## Layout
 
@@ -25,8 +27,7 @@ The `head-metrics` package is deliberately unsafe as a general font design: many
 Run from the repository root in `cmd.exe`:
 
 ```bat
-uv run python -m font_module_dev.patch_vertical_metrics --output-dir font_module_dev\experiments\head-metrics\fonts --ascent 928 --descent -244 --head-y-max 928 --head-y-min -244
-uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev\experiments\head-metrics\fonts --module-dir font_module_dev\experiments\head-metrics\module --output font_module_dev\experiments\maple-font-head-metrics.zip --module-id maple-font-head-metrics --module-name "Maple Font Head Metrics Experiment" --version "0.1.0-head-metrics"
+just mobile-headbound
 ```
 
 Use [`../device_capture/README.md`](../device_capture/README.md) for the on-device evidence and [`../ROADMAP.md`](../ROADMAP.md) for the future truthful-outline replacement plan.

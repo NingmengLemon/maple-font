@@ -65,6 +65,15 @@ mobile-patch ascent="970" descent="-300" experiment="ascent-970":
 mobile-module experiment="ascent-970" version="metrics-a970-d300":
     uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev/experiments/{{ experiment }}/fonts --module-dir font_module_dev/experiments/{{ experiment }}/module --output font_module_dev/experiments/{{ experiment }}/maple-font-{{ experiment }}.zip --module-id maple-font-{{ experiment }} --module-name "Maple Mono NF AllCJK {{ experiment }}" --version {{ version }}
 
+# Rebuild the Maple Mono Headbound QQ-header workaround from verified AllCJK faces.
+# WARNING: this deliberately forges head.yMax/yMin to 928/-244 while many real
+# glyph outlines exceed that box. It is an owner-accepted temporary workaround,
+# not a stable module or a safe general-purpose font build.
+mobile-headbound:
+    uv run python -m font_module_dev.patch_vertical_metrics --ascent 928 --descent -244 --head-y-max 928 --head-y-min -244 --output-dir font_module_dev/experiments/head-metrics/fonts
+    uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev/experiments/head-metrics/fonts --module-dir font_module_dev/experiments/head-metrics/module --output font_module_dev/experiments/maple-font-headbound.zip --module-id maple-font-headbound --module-name "Maple Mono Headbound (Unsafe)" --version "0.1.0-headbound" --description "UNSAFE temporary QQ header workaround: forged head bounds may clip real glyphs. Not for stable use."
+    uv run python -m font_module_dev.audit_vertical_metrics font_module_dev/experiments/head-metrics/fonts/MapleMono-NF-AllCJK-Regular.ttf --output font_module_dev/experiments/head-metrics/regular-vertical-metrics.json
+
 # Print the planned full AllCJK merge and fail if inputs are missing.
 merge-dry:
     uv run python merge_cjk_locales.py --dry
