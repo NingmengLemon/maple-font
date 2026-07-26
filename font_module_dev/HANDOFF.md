@@ -106,7 +106,8 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 | `font_module_dev/module/system/etc/*.xml` | 生成的 system overlay | generate_configs → build_module |
 | `font_module_dev/module/system_ext/etc/*.xml` | 生成的 system_ext overlay | generate_configs → build_module |
 | `font_module_dev/samples/*.xml` | 从实机拉取的原始配置样本 | 实机 adb pull + exec-out |
-| `font_module_dev/device_capture/` | 所有设备诊断捕获 | 实机 adb 只读命令 |
+| `font_module_dev/device_capture/` | 所有设备诊断捕获 | 实机 adb 只读命令；文件索引见 `device_capture/README.md`（目录默认忽略，不提交设备标识） |
+| `font_module_dev/experiments/` | 独立指标实验 module staging | 实验状态、重建命令与安全说明见 `experiments/README.md` |
 | `font_module_dev/report.md` | 调研报告 | 维护中 |
 | `font_module_dev/DEVICE_VALIDATION.md` | 设备验证命令集合 | 维护中 |
 | `font_module_dev/maple-font-module-v0.1.1-dev.zip` | 构建产物 | build_module.py |
