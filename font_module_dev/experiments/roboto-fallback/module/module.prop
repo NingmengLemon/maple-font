@@ -1,0 +1,6 @@
+id=maple-font-roboto-fallback
+name=Maple Mono Roboto fallback experiment
+version=v0.1.2-roboto-fallback
+versionCode=3
+author=Maple Font contributors
+description=Isolated U+032B generic fallback probe for CPH2747; requires reboot and Play Integrity Fork disabled.

@@ -1,6 +1,6 @@
 id=maple-font-headbound
 name=Maple Mono Headbound (Unsafe)
-version=0.1.0-headbound
+version=0.1.1-headbound
 versionCode=3
 author=Maple Font contributors
-description=UNSAFE temporary QQ header workaround: forged head bounds may clip real glyphs. Not for stable use.
+description=UNSAFE temporary QQ header workaround: forged head bounds may clip real glyphs. Includes Roboto generic fallback for U+032B; not for stable use.

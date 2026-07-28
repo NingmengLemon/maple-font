@@ -73,6 +73,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Comma-separated named UI families to replace; defaults to the full set.",
     )
+    parser.add_argument(
+        "--generic-fallback-font",
+        type=str,
+        default=None,
+        help=(
+            "Optional existing system font filename to add after the generic "
+            "Noto Symbols fallback. Intended only for isolated fallback experiments."
+        ),
+    )
     return parser
 
 
@@ -152,12 +161,38 @@ def replace_cjk_fallbacks(root: ElementTree.Element) -> int:
     return replaced
 
 
+def add_generic_fallback(root: ElementTree.Element, fallback_filename: str) -> None:
+    generic_symbols_filename = "NotoSansSymbols-Regular-Subsetted.ttf"
+    children = list(root)
+    symbols_indices = [
+        index
+        for index, child in enumerate(children)
+        if child.tag == "family"
+        and generic_symbols_filename in family_font_filenames(child)
+    ]
+    if len(symbols_indices) != 1:
+        raise ValueError(
+            "Expected exactly one generic Noto Symbols fallback family before adding "
+            f"{fallback_filename}, found {len(symbols_indices)}"
+        )
+
+    fallback = ElementTree.Element("family")
+    font = ElementTree.SubElement(
+        fallback,
+        "font",
+        {"weight": "400", "style": "normal"},
+    )
+    font.text = fallback_filename
+    root.insert(symbols_indices[0] + 1, fallback)
+
+
 def rewrite_config(
     source_path: Path,
     output_path: Path,
     *,
     preserve_cjk: bool = False,
     ui_families: tuple[str, ...] | None = None,
+    generic_fallback_font: str | None = None,
 ) -> None:
     tree = ElementTree.parse(source_path)
     root = tree.getroot()
@@ -183,6 +218,8 @@ def rewrite_config(
         )
     if not preserve_cjk:
         replace_cjk_fallbacks(root)
+    if generic_fallback_font is not None:
+        add_generic_fallback(root, generic_fallback_font)
 
     ElementTree.indent(tree, space="    ")
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,6 +252,7 @@ def main() -> None:
             output_path,
             preserve_cjk=args.preserve_cjk,
             ui_families=ui_families,
+            generic_fallback_font=args.generic_fallback_font,
         )
         print(f"Generated {output_path} from {source_path}")
 

@@ -10,6 +10,7 @@ This directory contains the Phase A1 diagnostic app from the module roadmap. It 
 - `includeFontPadding=true` and `false`
 - automatic line height and explicit line height
 - measured view bounds, text baseline, and visible text bounds relative to its containing view
+- a fallback probe for the reported kaomoji code points, logging `Paint.hasGlyph()` for Batak letters, the combining inverted double arch below, and the Gurmukhi digit seven
 
 The app uses Android framework APIs only. It has no network access, no storage permission, and does not alter any system configuration.
 
@@ -42,3 +43,5 @@ If the explicit candidate path cannot be read by the app process, the app logs `
 ## Report format
 
 The app logs one line per case in a stable key/value form. Key measurements include `metrics_top`, `metrics_ascent`, `metrics_descent`, `metrics_bottom`, `metrics_leading`, `view_height`, `baseline`, `layout_top`, and `layout_bottom`. `layout_top` and `layout_bottom` are the Android text layout bounds relative to the `TextView` top; a negative `layout_top` or `layout_bottom > view_height` indicates layout extending beyond the view bounds.
+
+Fallback records use `fallback_probe font=<system|candidate> codepoint=U+<hex> context=<isolated|with_underscore> has_glyph=<true|false> glyph_count=<n> glyph_fonts=<files>`. Combining marks are probed together with an underscore base, because an isolated combining mark does not represent the rendered kaomoji sequence. `Paint.hasGlyph()` reports whether Android can render the code point through the typeface's effective fallback collection; it does not prove that the selected font file's own cmap contains the code point. `glyph_fonts` is collected from Android's shaped glyph run and identifies the actual font files selected for that sample. Pair these records with the rendered `fallback_probe` sample, a screenshot, and a FontTools cmap audit when diagnosing a missing glyph.

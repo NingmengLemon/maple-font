@@ -162,6 +162,14 @@ The WebUI must invoke only fixed module-local launcher commands. It does not edi
 
 **Exit criteria:** on a supported KernelSU Next Manager, the WebUI reports state accurately, invokes the same launcher as C1, handles errors, and never permits arbitrary shell command entry.
 
+## Verified compatibility experiment: generic fallback
+
+The `maple-font-roboto-fallback` staging module has passed a targeted CPH2747 validation. It inserts the existing system `Roboto-Regular.ttf` after the generic Noto Symbols family in all four overlays; it does not alter named Maple families, package Roboto, or mix original faces into the four CJK language families.
+
+The test resolves the reported kaomoji's U+032B combining mark. Android shaping selects Roboto for the underscore-plus-U+032B sequence, preserves Maple for U+0325, and preserves the existing Batak/Gurmukhi fallbacks for the remaining non-CJK characters. Live XML, `dumpsys font`, the Play Store mount namespace, visual rendering, and font-error checks all passed with PIF disabled.
+
+The opt-in generic fallback must remain an explicit, independently validated configuration profile until it has passed the full release matrix. It is not a substitute for source-built CJK Extension G–J coverage, and it must not be combined with CJK-family edits. See [FALLBACK_DIAGNOSIS.md](FALLBACK_DIAGNOSIS.md) for the evidence.
+
 ## Workstream D: font content and package evolution
 
 ### Phase D1: CJK Extension G through J coverage
@@ -188,7 +196,8 @@ Validate Magisk and APatch independently. Do not infer support from the current 
 2. Implement B1 drift detection; it is low-risk and immediately useful after OTAs.
 3. Implement C1 portable commands, then B2/B3 native refresh with fixture-first tests.
 4. Add C2 WebUI only after the command path is proven; WebUI remains an optional KernelSU Next enhancement.
-5. Pursue D1/D2/D3 as separately staged font/package compatibility work.
+5. Promote the verified generic fallback only through a separately reviewed profile after its full application matrix passes; keep it independent from CJK source and TTC work.
+6. Pursue D1/D2/D3 as separately staged font/package compatibility work.
 
 ## Release gate
 

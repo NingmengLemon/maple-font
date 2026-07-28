@@ -44,6 +44,7 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
   - `system_ext/etc/fonts_ule.xml`
 - **XML 生成器：** `generate_configs.py` — 从实机 samples/ 生成 overlay
   - CJK family 仅替换为 Maple 静态 face，不拼接 Noto fallback
+  - 通用 Noto Symbols family 后固定保留系统 `Roboto-Regular.ttf`，用于罕见非 CJK / 组合附加符回退
 - **构建器：** `build_module.py` — 再生 XML → 复制字体 → 校验引用 → 打包 ZIP
   - ZIP 输出：`font_module_dev/maple-font-module-v0.1.1-dev.zip`（~197.9 MiB）
 
@@ -94,6 +95,22 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 
 ---
 
+## Android generic fallback experiment (passed)
+
+The reported kaomoji `喵ᯠ  _   ̫  _ ̥ ᯄ ੭` contains more than CJK:
+
+- U+1BE0 and U+1BC4 resolve through the preserved `NotoSansBatak-Regular.ttf` fallback.
+- U+0A6D resolves through the preserved `NotoSansGurmukhi-VF.ttf` fallback.
+- Maple maps U+0325 but not U+032B. U+032B is a nonspacing combining mark, so absence can look like an invisible mark rather than a tofu glyph.
+
+An isolated module, `maple-font-roboto-fallback`, adds the existing system `Roboto-Regular.ttf` as one generic fallback immediately after `NotoSansSymbols-Regular-Subsetted.ttf` in each of the four overlays. It does **not** package Roboto, change named Maple families, or change any CJK language family.
+
+On CPH2747, the owner installed this module and rebooted successfully. `dumpsys font`, live XML, and the Play Store process namespace confirmed the four overlays, 16 Maple assets, and the Roboto fallback. The extended Android diagnostic now inspects the actual shaped glyph font path: U+032B with an underscore selects `Roboto-Regular.ttf`, while U+0325 selects Maple. The owner confirmed the complete kaomoji renders normally.
+
+This is a narrow, accepted compatibility fix. It must remain a generic fallback: **do not** put original Noto/SysSans faces back into any CJK language family. Full evidence and the package reconstruction details are in [FALLBACK_DIAGNOSIS.md](FALLBACK_DIAGNOSIS.md).
+
+---
+
 ## 关键文件路径与用途
 
 | 路径 | 用途 | 来源 |
@@ -102,6 +119,9 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 | `font_module_dev/generate_configs.py` | 从实机 samples 生成模块 XML | 新写 |
 | `font_module_dev/build_module.py` | 构建模块 ZIP + 校验 | 重构 |
 | `scripts/tests/test_cjk_locale_merge.py` | merge 优先级 + 配置生成单测 | 新写 |
+| `font_module_dev/FALLBACK_DIAGNOSIS.md` | 通用 Android fallback 调研、实机结果和安全边界 | 本次 |
+| `font_module_dev/experiments/roboto-fallback/` | 已通过的 Roboto generic fallback staging 模块 | 本次 |
+| `font_module_dev/experiments/maple-font-headbound.zip` | 重建的 Headbound 包，含 Roboto generic fallback | 本次（忽略的派生产物） |
 | `font_module_dev/audit_cjk_extensions.py` | 只读审计源字体 Extended 区覆盖 | 新写 |
 | `font_module_dev/module/system/etc/*.xml` | 生成的 system overlay | generate_configs → build_module |
 | `font_module_dev/module/system_ext/etc/*.xml` | 生成的 system_ext overlay | generate_configs → build_module |
@@ -124,6 +144,7 @@ KernelSU 需要 metamodule（如 hybrid_mount）才能挂载 system 分区。
 - 模块 XML 引用与字体资产一一匹配
 - 实机启动、字体生效、Zygisk 正常、Google App/普通 App 无崩溃
 - KernelSU "默认卸载模块"关闭后稳定性已验证
+- Roboto generic fallback 实验：四层 live XML、FontManager、Play Store namespace、Android shaping diagnostic 和目视 kaomoji 均通过
 
 ---
 
@@ -199,11 +220,12 @@ The complete staged roadmap, including Android layout diagnostics, configuration
 1. **CJK Extension G–J 字形覆盖**：修改 locale 配置 ranges + 重新 CJK build
 2. **模块体积缩减**：当前 16 个 full CJK 字体约 388.5 MiB（模块 ZIP 195.6 MiB）；可考虑选择性打包或 subset
 3. **Native 自适应配置刷新器**：实现显式触发、解析 XML、fail-closed、保留 last-known-good 的设备端生成器；详细约束见 `report.md`
-4. **Android 度量/布局诊断**：已完成原系统与 Maple 的初始 `Paint.FontMetricsInt` / 基线 / 布局边界对比，确认 QQ 实际使用 `head` bounds；Headbound 仅是 owner-accepted 临时 workaround，不能作为安全发行包。后续需做真实 outline geometry 候选。
-5. **Play Store / Play Integrity Fork 兼容性**：根因已通过控制矩阵确认。PIF 的 Zygisk 代码对 `com.android.vending` 调用 `FORCE_DENYLIST_UNMOUNT`，移除 Maple overlay，但 FontManager 仍持有 Maple 路径，触发 Minikin 空指针崩溃。`manage.kernel_umount=false` 已在实机反证为无效。使用 Maple 系统字体时必须保持 PIF 禁用，或由 PIF / root-hiding 方案修复该强制卸载交互；完整证据见 `PLAY_STORE_DIAGNOSIS.md`。
-6. **APatch 兼容性**：未测试
-7. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
-8. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
+4. **Android 度量/布局诊断**：已完成原系统与 Maple 的初始 `Paint.FontMetricsInt` / 基线 / 布局边界对比，确认 QQ 实际使用 `head` bounds；Headbound 仅是 owner-accepted 临时 workaround，不能作为安全发行包。后续需做真实 outline geometry 候选。诊断 app 还可记录 shaping 后的实际字体路径，用于下一批 fallback 问题。
+5. **通用 fallback 演进**：`maple-font-roboto-fallback` 已修复并实机验证 U+032B 组合附加符和所报颜文字，现已合入稳定构建和 Headbound 重建配方。后续改动需保持它是符号族之后的无语言标签 generic fallback，并重复四层 XML、命名空间、Play Store 和常规应用验证；不要将其与 CJK Extension G–J 重建或 CJK language family 改动混合。
+6. **Play Store / Play Integrity Fork 兼容性**：根因已通过控制矩阵确认。PIF 的 Zygisk 代码对 `com.android.vending` 调用 `FORCE_DENYLIST_UNMOUNT`，移除 Maple overlay，但 FontManager 仍持有 Maple 路径，触发 Minikin 空指针崩溃。`manage.kernel_umount=false` 已在实机反证为无效。使用 Maple 系统字体时必须保持 PIF 禁用，或由 PIF / root-hiding 方案修复该强制卸载交互；完整证据见 `PLAY_STORE_DIAGNOSIS.md`。
+7. **APatch 兼容性**：未测试
+8. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
+9. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
 
 ### OpenType Collection（TTC）候选方案
 

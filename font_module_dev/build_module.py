@@ -22,6 +22,7 @@ MODULE_DIR = Path(__file__).resolve().parent / "module"
 SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
 FONTS_DIR = ROOT / "fonts" / "NF-AllCJK"
 MODULE_FONTS_DIR = MODULE_DIR / "system" / "fonts"
+GENERIC_FALLBACK_FONT = "Roboto-Regular.ttf"
 VERSION = "v0.1.2-dev"
 
 REQUIRED_MODULE_FILES = (
@@ -173,8 +174,12 @@ def main() -> None:
             rewrite_config(
                 SAMPLES_DIR / filename,
                 MODULE_DIR / partition / "etc" / filename,
+                generic_fallback_font=GENERIC_FALLBACK_FONT,
             )
-        print("[1/4] Regenerated XML overlays from pulled device samples")
+        print(
+            "[1/4] Regenerated XML overlays from pulled device samples "
+            f"with {GENERIC_FALLBACK_FONT} generic fallback"
+        )
     else:
         print("[1/4] Kept existing generated XML overlays")
 

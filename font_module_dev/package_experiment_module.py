@@ -47,6 +47,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated named UI families to replace during XML regeneration.",
     )
     parser.add_argument(
+        "--generic-fallback-font",
+        type=str,
+        default=None,
+        help=(
+            "Optional existing system font filename to add after the generic "
+            "Noto Symbols fallback. Intended only for isolated fallback experiments."
+        ),
+    )
+    parser.add_argument(
         "--description",
         default=None,
         help="Optional module.prop description override.",
@@ -98,6 +107,7 @@ def stage_module(
     description: str | None,
     preserve_cjk: bool,
     ui_families: tuple[str, ...] | None,
+    generic_fallback_font: str | None,
 ) -> list[Path]:
     if module_dir.resolve() == TEMPLATE_MODULE_DIR.resolve():
         raise ValueError(
@@ -117,13 +127,14 @@ def stage_module(
         shutil.copy2(font, destination)
         copied.append(destination)
 
-    if preserve_cjk or ui_families is not None:
+    if preserve_cjk or ui_families is not None or generic_fallback_font is not None:
         for filename in DEFAULT_CONFIG_FILENAMES:
             rewrite_config(
                 SAMPLES_DIR / filename,
                 module_dir / CONFIG_PARTITIONS[filename] / "etc" / filename,
                 preserve_cjk=preserve_cjk,
                 ui_families=ui_families,
+                generic_fallback_font=generic_fallback_font,
             )
 
     update_module_prop(
@@ -160,6 +171,7 @@ def main() -> None:
             if args.ui_families is not None
             else None
         ),
+        args.generic_fallback_font,
     )
     write_zip(args.module_dir, args.output)
     print(f"Packaged {len(copied)} patched fonts: {args.output}")

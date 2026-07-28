@@ -68,10 +68,12 @@ mobile-module experiment="ascent-970" version="metrics-a970-d300":
 # Rebuild the Maple Mono Headbound QQ-header workaround from verified AllCJK faces.
 # WARNING: this deliberately forges head.yMax/yMin to 928/-244 while many real
 # glyph outlines exceed that box. It is an owner-accepted temporary workaround,
-# not a stable module or a safe general-purpose font build.
+# not a stable module or a safe general-purpose font build. It includes the
+# independently validated Roboto generic fallback for U+032B, but never alters
+# CJK language-family fallback composition.
 mobile-headbound:
     uv run python -m font_module_dev.patch_vertical_metrics --ascent 928 --descent -244 --head-y-max 928 --head-y-min -244 --output-dir font_module_dev/experiments/head-metrics/fonts
-    uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev/experiments/head-metrics/fonts --module-dir font_module_dev/experiments/head-metrics/module --output font_module_dev/experiments/maple-font-headbound.zip --module-id maple-font-headbound --module-name "Maple Mono Headbound (Unsafe)" --version "0.1.0-headbound" --description "UNSAFE temporary QQ header workaround: forged head bounds may clip real glyphs. Not for stable use."
+    uv run python -m font_module_dev.package_experiment_module --fonts-dir font_module_dev/experiments/head-metrics/fonts --module-dir font_module_dev/experiments/head-metrics/module --output font_module_dev/experiments/maple-font-headbound.zip --module-id maple-font-headbound --module-name "Maple Mono Headbound (Unsafe)" --version "0.1.1-headbound" --generic-fallback-font Roboto-Regular.ttf --description "UNSAFE temporary QQ header workaround: forged head bounds may clip real glyphs. Includes Roboto generic fallback for U+032B; not for stable use."
     uv run python -m font_module_dev.audit_vertical_metrics font_module_dev/experiments/head-metrics/fonts/MapleMono-NF-AllCJK-Regular.ttf --output font_module_dev/experiments/head-metrics/regular-vertical-metrics.json
 
 # Print the planned full AllCJK merge and fail if inputs are missing.
@@ -82,7 +84,8 @@ merge-dry:
 merge-all-cjk:
     uv run python merge_cjk_locales.py
 
-# Regenerate XML overlays, sync the 16 AllCJK faces, validate, and package the module.
+# Regenerate XML overlays with the verified Roboto generic fallback, sync the 16
+# AllCJK faces, validate, and package the module.
 module:
     uv run python font_module_dev/build_module.py
 

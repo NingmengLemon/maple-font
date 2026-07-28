@@ -1,8 +1,12 @@
 package dev.maplefont.layoutdiagnostic;
 
 import android.app.Activity;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.fonts.Font;
+import android.graphics.text.PositionedGlyphs;
+import android.graphics.text.TextRunShaper;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
@@ -24,6 +28,14 @@ public final class MainActivity extends Activity {
     private static final String DEFAULT_CANDIDATE = "/system/fonts/MapleMono-NF-AllCJK-Regular.ttf";
     private static final String SAMPLE_SINGLE = "中文测试 AaÁgjpqy 〱，。！？";
     private static final String SAMPLE_MULTILINE = "中文测试 AaÁgjpqy 〱，。！？\n第二行：固定高度与基线";
+    private static final String SAMPLE_FALLBACK = "喵\u1BE0  _ \u032B  _\u0325 \u1BC4 \u0A6D";
+    private static final FallbackProbe[] FALLBACK_PROBES = {
+            new FallbackProbe(0x1BE0, "isolated", "\u1BE0"),
+            new FallbackProbe(0x032B, "with_underscore", "_\u032B"),
+            new FallbackProbe(0x0325, "with_underscore", "_\u0325"),
+            new FallbackProbe(0x1BC4, "isolated", "\u1BC4"),
+            new FallbackProbe(0x0A6D, "isolated", "\u0A6D"),
+    };
 
     private final List<CaseView> cases = new ArrayList<>();
 
@@ -83,6 +95,8 @@ public final class MainActivity extends Activity {
     }
 
     private void addCases(LinearLayout parent, String fontLabel, Typeface typeface) {
+        logFallbackProbe(fontLabel, typeface);
+        addCase(parent, fontLabel, "fallback_probe", SAMPLE_FALLBACK, typeface, dp(44), true, false, 0);
         addCase(parent, fontLabel, "single_fixed_padding", SAMPLE_SINGLE, typeface, dp(44), true, false, 0);
         addCase(parent, fontLabel, "single_fixed_no_padding", SAMPLE_SINGLE, typeface, dp(44), false, false, 0);
         addCase(parent, fontLabel, "multiline_fixed_padding", SAMPLE_MULTILINE, typeface, dp(72), true, false, 0);
@@ -205,6 +219,46 @@ public final class MainActivity extends Activity {
         cases.add(new CaseView(fontLabel, caseName, view, text, includeFontPadding, explicitLineHeight));
     }
 
+    private void logFallbackProbe(String fontLabel, Typeface typeface) {
+        Paint paint = new Paint();
+        paint.setTypeface(typeface);
+        for (FallbackProbe probe : FALLBACK_PROBES) {
+            PositionedGlyphs glyphs = TextRunShaper.shapeTextRun(
+                    probe.sample,
+                    0,
+                    probe.sample.length(),
+                    0,
+                    probe.sample.length(),
+                    0.0f,
+                    0.0f,
+                    false,
+                    paint
+            );
+            Log.i(TAG,
+                    "fallback_probe"
+                            + " font=" + fontLabel
+                            + " codepoint=U+" + String.format("%04X", probe.codePoint)
+                            + " context=" + probe.context
+                            + " has_glyph=" + paint.hasGlyph(probe.sample)
+                            + " glyph_count=" + glyphs.glyphCount()
+                            + " glyph_fonts=" + glyphFontPaths(glyphs)
+            );
+        }
+    }
+
+    private String glyphFontPaths(PositionedGlyphs glyphs) {
+        StringBuilder paths = new StringBuilder();
+        for (int index = 0; index < glyphs.glyphCount(); index++) {
+            if (index > 0) {
+                paths.append(',');
+            }
+            Font font = glyphs.getFont(index);
+            File file = font.getFile();
+            paths.append(file == null ? "<memory>" : file.getName());
+        }
+        return paths.toString();
+    }
+
     private void logMeasurements(String candidatePath, boolean candidateLoaded) {
         Log.i(TAG, "report_begin candidate_path=" + candidatePath + " candidate_load=" + (candidateLoaded ? "success" : "failed"));
         for (CaseView caseView : cases) {
@@ -280,6 +334,18 @@ public final class MainActivity extends Activity {
             this.text = text;
             this.includeFontPadding = includeFontPadding;
             this.explicitLineHeight = explicitLineHeight;
+        }
+    }
+
+    private static final class FallbackProbe {
+        final int codePoint;
+        final String context;
+        final String sample;
+
+        FallbackProbe(int codePoint, String context, String sample) {
+            this.codePoint = codePoint;
+            this.context = context;
+            this.sample = sample;
         }
     }
 }

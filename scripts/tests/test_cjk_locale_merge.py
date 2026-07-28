@@ -153,6 +153,54 @@ class CJKLocaleMergeTest(unittest.TestCase):
             self.assertEqual(hans_font.text, "NotoSansCJK-Regular.ttc")
             self.assertEqual(hans_font.get("index"), "2")
 
+    def test_config_adds_generic_fallback_after_symbols(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.xml"
+            output = root / "output.xml"
+            source.write_text(
+                """<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+  <family name="sans-serif"><font>Roboto-Regular.ttf</font></family>
+  <family name="monospace"><font>DroidSansMono.ttf</font></family>
+  <family><font>NotoSansSymbols-Regular-Subsetted.ttf</font></family>
+  <family lang="zh-Hans"><font index="2">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="zh-Hant,zh-Bopo"><font index="3">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="ja"><font index="0">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="ko"><font index="1">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="und-Zsye"><font>NotoColorEmoji.ttf</font></family>
+</familyset>""",
+                encoding="utf-8",
+            )
+
+            rewrite_config(
+                source,
+                output,
+                generic_fallback_font="Roboto-Regular.ttf",
+            )
+
+            generated = ElementTree.parse(output).getroot()
+            children = list(generated)
+            symbols_index = next(
+                index
+                for index, child in enumerate(children)
+                if child.tag == "family"
+                and child.findtext("font") == "NotoSansSymbols-Regular-Subsetted.ttf"
+            )
+            fallback = children[symbols_index + 1]
+            self.assertEqual(fallback.tag, "family")
+            self.assertIsNone(fallback.get("name"))
+            self.assertIsNone(fallback.get("lang"))
+            self.assertEqual(fallback.findtext("font"), "Roboto-Regular.ttf")
+            self.assertGreater(
+                next(
+                    index
+                    for index, child in enumerate(children)
+                    if child.tag == "family" and child.get("lang") == "und-Zsye"
+                ),
+                symbols_index + 1,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
