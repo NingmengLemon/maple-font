@@ -199,10 +199,11 @@ The complete staged roadmap, including Android layout diagnostics, configuration
 1. **CJK Extension G–J 字形覆盖**：修改 locale 配置 ranges + 重新 CJK build
 2. **模块体积缩减**：当前 16 个 full CJK 字体约 388.5 MiB（模块 ZIP 195.6 MiB）；可考虑选择性打包或 subset
 3. **Native 自适应配置刷新器**：实现显式触发、解析 XML、fail-closed、保留 last-known-good 的设备端生成器；详细约束见 `report.md`
-4. **Android 度量/布局诊断**：已完成原系统与 Maple 的初始 `Paint.FontMetricsInt` / 基线 / 布局边界对比，确认 QQ 实际使用 `head` bounds：`head=928/-244` 的完整模块已通过挂载、QQ 进程映射和标题栏恢复验证。由于该伪造 head range 与数百真实字形边界冲突，下一步是构建谨慎的源级 CJK 几何候选，并据真实新 outline bounds 写入 metrics/head；不得推广当前 head-table probe
-5. **APatch 兼容性**：未测试
-6. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
-7. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
+4. **Android 度量/布局诊断**：已完成原系统与 Maple 的初始 `Paint.FontMetricsInt` / 基线 / 布局边界对比，确认 QQ 实际使用 `head` bounds；Headbound 仅是 owner-accepted 临时 workaround，不能作为安全发行包。后续需做真实 outline geometry 候选。
+5. **Play Store / Play Integrity Fork 兼容性**：根因已通过控制矩阵确认。PIF 的 Zygisk 代码对 `com.android.vending` 调用 `FORCE_DENYLIST_UNMOUNT`，移除 Maple overlay，但 FontManager 仍持有 Maple 路径，触发 Minikin 空指针崩溃。`manage.kernel_umount=false` 已在实机反证为无效。使用 Maple 系统字体时必须保持 PIF 禁用，或由 PIF / root-hiding 方案修复该强制卸载交互；完整证据见 `PLAY_STORE_DIAGNOSIS.md`。
+6. **APatch 兼容性**：未测试
+7. **magisk 专用安装器**：模块内 update-binary 仅为 Magisk 官方入口，未在 Magisk 实机测试
+8. **CJK 静态资源 SHA-256 来源**：新增的 JP/TC/KR sha256 文件缺少来源说明和复验记录
 
 ### OpenType Collection（TTC）候选方案
 
@@ -221,7 +222,17 @@ The complete staged roadmap, including Android layout diagnostics, configuration
 
 ---
 
+## Play Store crash root cause (resolved)
+
+Google Play Store reproducibly crashes on this device when **Play Integrity Fork (PIF)** and a Maple system-font overlay are both enabled. The complete matrix is in [`PLAY_STORE_DIAGNOSIS.md`](PLAY_STORE_DIAGNOSIS.md).
+
+**Summary:** PIF explicitly calls Zygisk's `FORCE_DENYLIST_UNMOUNT` option for Play Store. This removes the module-owned `/system/fonts` and font XML overlays from that app's mount namespace, while Android FontManager retains its previously resolved Maple `sans-serif` path. The missing file produces `SkData` failure and `Font::prepareFont()` null dereference.
+
+**Rejected workaround:** `manage.kernel_umount=false` was installed in the active font module and tested with PIF enabled. It did not preserve Maple mounts or prevent the crash. The KernelSU `kernel_umount` feature was already disabled; this metadata does not override PIF's Zygisk forced unmount.
+
 ## 禁止事项（已通过实机验证应该避免）
+
+> **新增 (2026-07-28):** 不要在此设备上同时启用 Play Integrity Fork 与 Maple 系统字体模块。除非 PIF 或 root-hiding stack 已经完成专门兼容性修复并通过应用命名空间验证，否则应保持 PIF 禁用。
 
 - **不要在同一个 CJK language family 中混合 Maple 静态 face 与原始 Noto/SysSans face** — 会导致 bootloop
 - **不要在模块中删除全局缓存**（/data/fonts, GMS, Gboard 等）— service.sh 和 uninstall.sh 已清理为只写诊断日志

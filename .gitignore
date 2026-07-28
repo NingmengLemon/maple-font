@@ -18,3 +18,9 @@ __pycache__
 
 # Rooted-device diagnostic captures may contain device identifiers and mount state.
 font_module_dev/device_capture/
+
+# Locally staged rooted-device module trees and raw Play Store captures.
+font_module_dev/experiments/*/active-module-source/
+font_module_dev/experiments/*/kernel-umount-false-module/
+font_module_dev/samples/com.android.vending_*.log
+font_module_dev/samples/play-store-*.txt

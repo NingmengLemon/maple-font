@@ -20,7 +20,7 @@ Every phase must preserve these properties:
 1. Never write the physical `/system` or `/system_ext` partitions. All generated XML remains module-owned overlay content.
 2. Never mix Maple static faces and original Noto/SysSans faces in the same CJK language family. That configuration bootlooped on the target device.
 3. Do not clear global font, GMS, keyboard, or application caches.
-4. Keep the KernelSU Next "Umount modules by default" setting disabled for this system-font module.
+4. Do not enable Play Integrity Fork together with a Maple system-font overlay on CPH2747 unless a PIF/root-hiding compatibility change has passed the Play Store namespace validation. PIF explicitly requests Zygisk forced unmount for Play Store; `manage.kernel_umount=false` does not override that request.
 5. Treat unknown ROM configuration structures as unsupported and fail closed. Do not perform heuristic XML rewrites.
 6. Preserve a last-known-good generated XML set before publishing a replacement.
 

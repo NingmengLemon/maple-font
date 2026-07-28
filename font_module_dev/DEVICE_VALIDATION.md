@@ -19,7 +19,20 @@ adb shell su -c 'magisk -V 2>/dev/null; ksud --version 2>/dev/null; getprop | gr
 
 Review `root-overlay-state.txt` before installation. A global `/data/adb/modules/disable` file disables every module; remove it only if intentional, then reboot before proceeding. When KernelSU / KernelSU Next is the root provider, verify a system-mount provider is active (for example the installed `hybrid_mount`, or a metamodule such as `meta-overlayfs`). This module does not install or configure that prerequisite.
 
-For a system-font module, disable **Umount modules by default** in KernelSU Next before enabling the module. If normal application processes do not see the mounted font files while Android's FontManager resolves them, Minikin/HWUI can crash. The working device validation established this setting as required for the CPH2747 profile.
+For a system-font module, verify that normal application processes can see the mounted font files selected by Android's FontManager. If the files are absent from an application mount namespace while FontManager still resolves their paths, Minikin/HWUI can crash.
+
+**⚠️ Confirmed Play Integrity Fork conflict on CPH2747:** the Play Integrity Fork Zygisk module explicitly requests `FORCE_DENYLIST_UNMOUNT` for processes whose data directory belongs to Google Play Services or Google Play Store. With Maple active, this removes the Maple font and XML overlays from `com.android.vending` while FontManager continues to resolve `sans-serif` to Maple paths. The result is the documented Minikin crash.
+
+Do **not** enable Play Integrity Fork together with a Maple system-font overlay on this device profile. The KernelSU declaration `manage.kernel_umount=false` was tested in the active font module and did **not** prevent PIF/Zygisk Next from removing its overlay in Play Store. It is not a workaround for this interaction.
+
+After every reboot, check the actual application namespace rather than inferring it from manager settings:
+```sh
+adb shell su -c 'p=$(pidof com.android.vending); find /proc/$p/root/system/fonts -maxdepth 1 -name "MapleMono-NF-AllCJK-*.ttf" | wc -l'
+adb shell su -c 'p=$(pidof com.android.vending); grep /system/fonts /proc/$p/mountinfo'
+adb shell su -c 'dumpsys font | grep MapleMono-NF-AllCJK-Medium.ttf | head -n 1'
+```
+
+A healthy Maple state has 16 Maple files and a KSU `/system/fonts` overlay in the Play Store namespace. See `PLAY_STORE_DIAGNOSIS.md` for the controlled test matrix and failure evidence.
 
 ## 2. Build and inspect the package
 
