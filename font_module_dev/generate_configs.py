@@ -62,6 +62,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=",".join(DEFAULT_CONFIG_FILENAMES),
         help="Comma-separated pulled configuration files to rewrite.",
     )
+    parser.add_argument(
+        "--preserve-cjk",
+        action="store_true",
+        help="Keep original CJK language fallback families for an isolation experiment.",
+    )
+    parser.add_argument(
+        "--ui-families",
+        type=str,
+        default=None,
+        help="Comma-separated named UI families to replace; defaults to the full set.",
+    )
     return parser
 
 
@@ -141,35 +152,37 @@ def replace_cjk_fallbacks(root: ElementTree.Element) -> int:
     return replaced
 
 
-def rewrite_config(source_path: Path, output_path: Path) -> None:
+def rewrite_config(
+    source_path: Path,
+    output_path: Path,
+    *,
+    preserve_cjk: bool = False,
+    ui_families: tuple[str, ...] | None = None,
+) -> None:
     tree = ElementTree.parse(source_path)
     root = tree.getroot()
     if root.tag != "familyset":
         raise ValueError(f"Unexpected root element in {source_path}: {root.tag}")
 
-    required_families = ("sans-serif", "monospace")
-    optional_families = (
+    default_ui_families = (
+        "sans-serif",
+        "monospace",
         "roboto",
         "roboto-flex",
         "sans-serif-condensed",
         "sys-sans-en",
         "op-sans-en",
     )
-    for family_name in required_families:
+    selected_ui_families = ui_families or default_ui_families
+    for family_name in selected_ui_families:
         replace_family_fonts(
             root,
             family_name=family_name,
             faces=make_static_faces(include_italic=True),
-            required=True,
+            required=family_name in {"sans-serif", "monospace"},
         )
-    for family_name in optional_families:
-        replace_family_fonts(
-            root,
-            family_name=family_name,
-            faces=make_static_faces(include_italic=True),
-            required=False,
-        )
-    replace_cjk_fallbacks(root)
+    if not preserve_cjk:
+        replace_cjk_fallbacks(root)
 
     ElementTree.indent(tree, space="    ")
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,7 +205,17 @@ def main() -> None:
             else "system"
         )
         output_path = args.output_dir / partition / "etc" / filename
-        rewrite_config(source_path, output_path)
+        ui_families = (
+            tuple(name.strip() for name in args.ui_families.split(",") if name.strip())
+            if args.ui_families is not None
+            else None
+        )
+        rewrite_config(
+            source_path,
+            output_path,
+            preserve_cjk=args.preserve_cjk,
+            ui_families=ui_families,
+        )
         print(f"Generated {output_path} from {source_path}")
 
 

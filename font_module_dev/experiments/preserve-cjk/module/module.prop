@@ -1,0 +1,6 @@
+id=maple-font-preserve-cjk
+name=Maple Mono UI Latin with System CJK
+version=0.1.0-preserve-cjk
+versionCode=3
+author=Maple Font contributors
+description=Isolation experiment: Maple UI families with original system CJK fallbacks.

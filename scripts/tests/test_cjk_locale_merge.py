@@ -101,6 +101,58 @@ class CJKLocaleMergeTest(unittest.TestCase):
             self.assertEqual(faces[-1].text, "MapleMono-NF-AllCJK-ExtraBold.ttf")
             self.assertIsNone(faces[-1].get("index"))
 
+    def test_config_can_isolate_named_ui_replacement_and_preserve_cjk(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.xml"
+            output = root / "output.xml"
+            source.write_text(
+                """<?xml version="1.0" encoding="utf-8"?>
+<familyset>
+  <family name="sans-serif"><font>Roboto-Regular.ttf</font></family>
+  <family name="monospace"><font>DroidSansMono.ttf</font></family>
+  <family name="roboto"><font>Roboto-Regular.ttf</font></family>
+  <family lang="zh-Hans"><font index="2">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="zh-Hant,zh-Bopo"><font index="3">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="ja"><font index="0">NotoSansCJK-Regular.ttc</font></family>
+  <family lang="ko"><font index="1">NotoSansCJK-Regular.ttc</font></family>
+</familyset>""",
+                encoding="utf-8",
+            )
+
+            rewrite_config(
+                source,
+                output,
+                preserve_cjk=True,
+                ui_families=("sans-serif",),
+            )
+
+            generated = ElementTree.parse(output).getroot()
+            sans_serif = generated.find("family[@name='sans-serif']")
+            assert sans_serif is not None
+            sans_serif_font = sans_serif.find("font")
+            assert sans_serif_font is not None
+            self.assertEqual(sans_serif_font.text, "MapleMono-NF-AllCJK-Thin.ttf")
+
+            monospace = generated.find("family[@name='monospace']")
+            assert monospace is not None
+            monospace_font = monospace.find("font")
+            assert monospace_font is not None
+            self.assertEqual(monospace_font.text, "DroidSansMono.ttf")
+
+            roboto = generated.find("family[@name='roboto']")
+            assert roboto is not None
+            roboto_font = roboto.find("font")
+            assert roboto_font is not None
+            self.assertEqual(roboto_font.text, "Roboto-Regular.ttf")
+
+            hans = generated.find("family[@lang='zh-Hans']")
+            assert hans is not None
+            hans_font = hans.find("font")
+            assert hans_font is not None
+            self.assertEqual(hans_font.text, "NotoSansCJK-Regular.ttc")
+            self.assertEqual(hans_font.get("index"), "2")
+
 
 if __name__ == "__main__":
     unittest.main()

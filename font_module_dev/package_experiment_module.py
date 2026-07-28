@@ -8,7 +8,17 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from font_module_dev.generate_configs import DEFAULT_CONFIG_FILENAMES, rewrite_config
+
+
 FONT_PREFIX = "MapleMono-NF-AllCJK"
+SAMPLES_DIR = Path(__file__).resolve().parent / "samples"
+CONFIG_PARTITIONS = {
+    "font_fallback.xml": "system",
+    "fonts.xml": "system",
+    "fonts_base.xml": "system_ext",
+    "fonts_ule.xml": "system_ext",
+}
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +35,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--module-id", required=True)
     parser.add_argument("--module-name", required=True)
     parser.add_argument("--version", required=True)
+    parser.add_argument(
+        "--preserve-cjk",
+        action="store_true",
+        help="Regenerate XML overlays while retaining original CJK fallback families.",
+    )
+    parser.add_argument(
+        "--ui-families",
+        type=str,
+        default=None,
+        help="Comma-separated named UI families to replace during XML regeneration.",
+    )
     parser.add_argument(
         "--description",
         default=None,
@@ -75,6 +96,8 @@ def stage_module(
     module_name: str,
     version: str,
     description: str | None,
+    preserve_cjk: bool,
+    ui_families: tuple[str, ...] | None,
 ) -> list[Path]:
     if module_dir.resolve() == TEMPLATE_MODULE_DIR.resolve():
         raise ValueError(
@@ -93,6 +116,15 @@ def stage_module(
         destination = target_fonts_dir / font.name
         shutil.copy2(font, destination)
         copied.append(destination)
+
+    if preserve_cjk or ui_families is not None:
+        for filename in DEFAULT_CONFIG_FILENAMES:
+            rewrite_config(
+                SAMPLES_DIR / filename,
+                module_dir / CONFIG_PARTITIONS[filename] / "etc" / filename,
+                preserve_cjk=preserve_cjk,
+                ui_families=ui_families,
+            )
 
     update_module_prop(
         module_dir / "module.prop",
@@ -122,6 +154,12 @@ def main() -> None:
         args.module_name,
         args.version,
         args.description,
+        args.preserve_cjk,
+        (
+            tuple(name.strip() for name in args.ui_families.split(",") if name.strip())
+            if args.ui_families is not None
+            else None
+        ),
     )
     write_zip(args.module_dir, args.output)
     print(f"Packaged {len(copied)} patched fonts: {args.output}")

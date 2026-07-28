@@ -1,0 +1,6 @@
+id=maple-font-assets-only
+name=Maple Font Assets Only
+version=0.1.0-assets-only
+versionCode=3
+author=Maple Font contributors
+description=Isolation experiment: Maple assets present; original ROM font XML retained.

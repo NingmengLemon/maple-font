@@ -1,0 +1,6 @@
+id=maple-font-core-ui
+name=Maple Font Core UI Isolation
+version=0.1.0-core-ui
+versionCode=3
+author=Maple Font contributors
+description=Isolation experiment: replace only sans-serif and monospace; retain system CJK and other UI families.
